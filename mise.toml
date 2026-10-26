@@ -1,0 +1,49 @@
+[tools]
+go = "1.27.3"
+
+[env]
+CGO_ENABLED = "0"
+
+[tasks.build]
+description = "Build bin/unifi"
+run = "go build -trimpath -ldflags \"-s -w -X github.com/nickzelei/unifi-cli/internal/cli.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)\" -o bin/unifi ./cmd/unifi"
+
+[tasks.install]
+description = "Install unifi into $GOBIN"
+run = "go install -trimpath ./cmd/unifi"
+
+[tasks.test]
+description = "Run tests"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Check formatting and vet"
+run = [
+  "test -z \"$(gofmt -l .)\" || (gofmt -l . && echo 'gofmt needed' && exit 1)",
+  "go vet ./...",
+]
+
+[tasks.gen]
+description = "Regenerate internal/spec/ops_gen.go from the embedded spec"
+run = "go generate ./internal/spec"
+
+[tasks."spec:fetch"]
+description = "Download the spec from your console (or pass --url <spec url>)"
+run = "go run ./internal/cmd/gen fetch"
+
+[tasks."spec:update"]
+description = "Fetch the latest spec from your console and regenerate"
+depends = ["spec:fetch"]
+run = "go generate ./internal/spec"
+
+[tasks.check]
+description = "Lint, test, and verify generated code is up to date"
+depends = ["lint", "test"]
+run = [
+  "go generate ./internal/spec",
+  "git diff --exit-code -- internal/spec/ops_gen.go",
+]
+
+[tasks."skill:install"]
+description = "Symlink the agent skill into ~/.claude/skills"
+run = "mkdir -p ~/.claude/skills && ln -sfn \"$PWD/skills/unifi\" ~/.claude/skills/unifi && echo linked ~/.claude/skills/unifi"
