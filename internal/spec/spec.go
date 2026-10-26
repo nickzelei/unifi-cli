@@ -45,6 +45,24 @@ func schemas() (map[string]any, error) {
 	return s, nil
 }
 
+// Topic returns the description of a documentation tag in the spec, such as
+// "Filtering", matched ignoring case.
+func Topic(name string) (string, error) {
+	d, err := Doc()
+	if err != nil {
+		return "", err
+	}
+	tags, _ := d["tags"].([]any)
+	for _, t := range tags {
+		tm, _ := t.(map[string]any)
+		if n, _ := tm["name"].(string); strings.EqualFold(n, name) {
+			desc, _ := tm["description"].(string)
+			return desc, nil
+		}
+	}
+	return "", fmt.Errorf("topic %q is not in the spec for %s", name, SpecVersion)
+}
+
 // SchemaNames lists all component schema names.
 func SchemaNames() ([]string, error) {
 	s, err := schemas()

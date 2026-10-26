@@ -3,7 +3,7 @@
 package spec
 
 // SpecVersion is the UniFi Network API version of the embedded spec.
-const SpecVersion = "10.6.106"
+const SpecVersion = "10.6.109"
 
 // Ops lists every API operation, sorted by command.
 var Ops = []Op{

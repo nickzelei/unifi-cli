@@ -235,6 +235,13 @@ func TestHelpRendersForEveryOp(t *testing.T) {
 	}
 }
 
+func TestHelpFilter(t *testing.T) {
+	code, out, _ := run(t, "", "help", "filter")
+	if code != 0 || !strings.Contains(out, "containsExactly") {
+		t.Fatalf("exit %d, out %q", code, out)
+	}
+}
+
 func TestCommandsJSON(t *testing.T) {
 	code, out, _ := run(t, "", "commands", "--json")
 	var cmds []map[string]any

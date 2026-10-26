@@ -39,7 +39,10 @@ Most commands are site-scoped. The site defaults to the configured one, or the o
 
 ## Filter syntax
 
+`unifi help filter` prints the full reference from the API spec. In short:
+
 - Property: `<field>.<fn>(<args>)`, e.g. `name.eq('Office')`, `ipAddress.isNotNull()`, `state.in('ONLINE', 'OFFLINE')`, `name.like('guest*')`
+- `like` patterns: `*` matches any run of characters and `.` matches exactly one character; escape them with `\`.
 - Combine: `and(a, b, ...)`, `or(a, b, ...)`, `not(a)`
 - Functions: `isNull isNotNull eq ne gt ge lt le like in notIn`; for set-typed fields such as `features`, use `isEmpty contains containsAny containsAll containsExactly`. Each list's help shows which functions apply to which field.
 - Values: strings in single quotes (escape `'` as `''`); numbers, `true`/`false`, UUIDs and ISO-8601 timestamps bare; sets as `[1, 2]`

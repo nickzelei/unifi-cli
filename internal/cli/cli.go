@@ -165,6 +165,14 @@ func helpCmd(args []string, io IO) error {
 		rootHelp(io.Out)
 		return nil
 	}
+	if len(args) == 1 && (args[0] == "filter" || args[0] == "filtering") {
+		doc, err := spec.Topic("Filtering")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(io.Out, doc)
+		return nil
+	}
 	if op, n := spec.Find(args); op != nil && n == len(args) {
 		return opHelp(io.Out, op)
 	}
@@ -203,6 +211,7 @@ Other commands:
   schema <name> [--depth N]          print a schema from the API spec (--list for all)
   api <METHOD> <path> [flags]        send a raw request, e.g. unifi api GET /v1/sites/{siteId}/wans
   config init|show|path              manage connection profiles
+  help filter                        --filter syntax for list commands
   version                            print versions
 
 Global flags (after the command):

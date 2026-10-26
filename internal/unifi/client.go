@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -36,12 +37,24 @@ type APIError struct {
 	Body        []byte
 }
 
+// Error prints the console's error code and message when the body is the
+// standard error JSON, else the raw body.
 func (e *APIError) Error() string {
-	body := strings.TrimSpace(string(e.Body))
-	if body == "" {
-		body = http.StatusText(e.Status)
+	var std struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
 	}
-	return fmt.Sprintf("%s %s: HTTP %d: %s", e.Method, e.URL, e.Status, body)
+	msg := strings.TrimSpace(string(e.Body))
+	if json.Unmarshal(e.Body, &std) == nil && std.Message != "" {
+		msg = std.Message
+		if std.Code != "" {
+			msg = std.Code + ": " + msg
+		}
+	}
+	if msg == "" {
+		msg = http.StatusText(e.Status)
+	}
+	return fmt.Sprintf("HTTP %d %s (%s %s)", e.Status, msg, e.Method, e.URL)
 }
 
 // NewClient builds a client for the profile.

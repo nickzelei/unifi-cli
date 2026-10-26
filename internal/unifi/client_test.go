@@ -123,6 +123,22 @@ func TestLoadProfilesAndEnv(t *testing.T) {
 	}
 }
 
+func TestAPIErrorMessage(t *testing.T) {
+	e := &APIError{Method: "GET", URL: "https://x/v1/sites", Status: 400,
+		Body: []byte(`{"statusCode":400,"code":"api.request.invalid-filter","message":"bad filter","timestamp":"t","requestId":"r"}`)}
+	if got, want := e.Error(), "HTTP 400 api.request.invalid-filter: bad filter (GET https://x/v1/sites)"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	e.Body = []byte("plain text")
+	if got := e.Error(); !strings.Contains(got, "HTTP 400 plain text") {
+		t.Errorf("non-JSON body: %q", got)
+	}
+	e.Body = nil
+	if got := e.Error(); !strings.Contains(got, "Bad Request") {
+		t.Errorf("empty body: %q", got)
+	}
+}
+
 func TestMatchSite(t *testing.T) {
 	sites := []Site{
 		{ID: "11111111-1111-1111-1111-111111111111", InternalReference: "default", Name: "Default"},
