@@ -18,14 +18,14 @@ Commands are `unifi <resource...> <verb> [ids...] [flags]`, for example:
 ```
 unifi sites list
 unifi devices list
-unifi devices get <device-id>
+unifi devices get <device-id|name|mac|ip>
 unifi devices statistics <device-id>
 unifi clients list --filter "type.eq('WIRED')"
 unifi networks list --fields id,name,vlanId
 unifi firewall policies ordering get --source-firewall-zone-id <id> --destination-firewall-zone-id <id>
 ```
 
-IDs are UUIDs taken from earlier `list` output. Flags can come before or after positional args.
+ID arguments take a UUID, or a name (any case), MAC (any separator) or IP where the resource has one: `unifi devices get office-ap`, `unifi clients get aa:bb:cc:dd:ee:ff`. A non-UUID costs one extra list request and fails if it matches zero or several items (the error lists the candidates' UUIDs). Prefer UUIDs from earlier output when you already have them, and always use the UUID for destructive commands once you've confirmed which item is meant. Flags can come before or after positional args.
 
 ## Sites
 

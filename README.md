@@ -38,9 +38,12 @@ unifi devices list --fields id,name,model,state
 unifi clients list --all --filter "type.eq('WIRELESS')"
 unifi dns policies create --help                 # body schema + variants
 unifi dns policies create --dry-run --data '{"type":"A_RECORD","enabled":true,"domain":"nas.lan","ipv4Address":"192.168.1.20","ttlSeconds":300}'
+unifi devices get office-ap                      # IDs: UUID, or name / MAC / IP
 unifi devices action <id> --data '{"action":"RESTART"}' --yes
 unifi api GET /v1/sites/{siteId}/wans            # raw escape hatch
 ```
+
+ID arguments take a UUID as-is. Anything else is looked up in the matching list (`devices get x` searches `devices list`) by name (any case), MAC (any separator) or IP, costing one extra request; zero or multiple matches is an error that lists the candidates.
 
 ## Agent skill
 

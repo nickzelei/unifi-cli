@@ -94,10 +94,17 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 		path = strings.Replace(path, "{siteId}", url.PathEscape(id), 1)
 	}
 	for i, a := range op.Args {
-		if err := checkType(a, pos[i]); err != nil {
+		v := pos[i]
+		if a.Format == "uuid" && !unifi.IsUUID(v) && lookupOp(op, a) != nil {
+			// Not a UUID: look it up by name/MAC/IP in the parent list.
+			listPath := path[:strings.Index(path, "/{"+a.Name+"}")]
+			if v, err = resolveID(ctx, c, a, listPath, v); err != nil {
+				return err
+			}
+		} else if err := checkType(a, v); err != nil {
 			return err
 		}
-		path = strings.Replace(path, "{"+a.Name+"}", url.PathEscape(pos[i]), 1)
+		path = strings.Replace(path, "{"+a.Name+"}", url.PathEscape(v), 1)
 	}
 
 	if g.dryRun {

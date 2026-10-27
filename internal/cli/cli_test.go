@@ -54,19 +54,25 @@ func (m *mock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		var items []string
 		for i := offset; i < 5 && i < offset+limit; i++ {
-			items = append(items, fmt.Sprintf(`{"id":"dev-%d","name":"Device %d","state":"ONLINE","interfaces":{"ports":[{"idx":1}]}}`, i, i))
+			name := fmt.Sprintf("Device %d", i)
+			if i >= 3 {
+				name = "Twin"
+			}
+			items = append(items, fmt.Sprintf(`{"id":%q,"name":%q,"macAddress":"aa:bb:cc:00:00:0%d","ipAddress":"10.0.0.%d","state":"ONLINE","interfaces":{"ports":[{"idx":1}]}}`, devID(i), name, i, i))
 		}
 		fmt.Fprintf(w, `{"offset":%d,"limit":%d,"count":%d,"totalCount":5,"data":[%s]}`, offset, limit, len(items), strings.Join(items, ","))
-	case p == "/v1/sites/"+siteID+"/devices/"+deviceID:
-		fmt.Fprintf(w, `{"id":%q,"name":"Gateway"}`, deviceID)
 	case strings.HasSuffix(p, "/actions"):
 		w.WriteHeader(http.StatusOK)
+	case strings.HasPrefix(p, "/v1/sites/"+siteID+"/devices/"):
+		fmt.Fprintf(w, `{"id":%q}`, strings.TrimPrefix(p, "/v1/sites/"+siteID+"/devices/"))
 	case p == "/v1/sites/"+siteID+"/wans":
 		w.Write([]byte(`{"data":[{"name":"WAN1"}],"totalCount":1}`))
 	default:
 		http.Error(w, `{"statusCode":404,"message":"not found"}`, http.StatusNotFound)
 	}
 }
+
+func devID(i int) string { return fmt.Sprintf("00000000-0000-4000-8000-%012d", i) }
 
 func setup(t *testing.T) *mock {
 	t.Helper()
@@ -133,12 +139,51 @@ func TestAllPagesAndFields(t *testing.T) {
 	if _, ok := page.Data[0]["name"]; ok {
 		t.Fatalf("--fields did not drop name: %v", page.Data[0])
 	}
-	if fmt.Sprint(page.Data[4]) != "map[id:dev-4 interfaces:map[ports:[map[idx:1]]]]" {
+	if fmt.Sprint(page.Data[4]) != "map[id:"+devID(4)+" interfaces:map[ports:[map[idx:1]]]]" {
 		t.Fatalf("projection = %v", page.Data[4])
 	}
 	// sites lookup + 3 pages (2+2+1)
 	if n := len(m.seen()); n != 4 {
 		t.Fatalf("made %d requests: %v", n, m.seen())
+	}
+}
+
+func TestIDByNameMACOrIP(t *testing.T) {
+	list := "GET /v1/sites/" + siteID + "/devices?limit=200&offset=0"
+	for sel, want := range map[string]int{
+		"device 1":          1, // name, any case
+		"AA-BB-CC-00-00-02": 2, // MAC, any case or separator
+		"10.0.0.0":          0, // IP
+	} {
+		m := setup(t)
+		code, out, errOut := run(t, "", "devices", "get", sel, "--site", siteID)
+		if code != 0 || !strings.Contains(out, devID(want)) {
+			t.Errorf("%q: exit %d, out %q, err %q", sel, code, out, errOut)
+			continue
+		}
+		if got := m.seen(); fmt.Sprint(got) != fmt.Sprint([]string{list, "GET /v1/sites/" + siteID + "/devices/" + devID(want)}) {
+			t.Errorf("%q: requests = %v", sel, got)
+		}
+	}
+}
+
+func TestIDLookupErrors(t *testing.T) {
+	setup(t)
+	code, _, errOut := run(t, "", "devices", "get", "twin", "--site", siteID)
+	if code != exitErr || !strings.Contains(errOut, "matches 2 devices") || !strings.Contains(errOut, devID(3)) || !strings.Contains(errOut, devID(4)) {
+		t.Errorf("ambiguous: exit %d, stderr %q", code, errOut)
+	}
+	code, _, errOut = run(t, "", "devices", "get", "nope", "--site", siteID)
+	if code != exitErr || !strings.Contains(errOut, `no device matches "nope" by name/macAddress/ipAddress`) {
+		t.Errorf("missing: exit %d, stderr %q", code, errOut)
+	}
+}
+
+func TestIDLookupWithLaterArgs(t *testing.T) {
+	setup(t)
+	code, out, errOut := run(t, "", "devices", "port-action", "Device 2", "7", "--site", siteID, "--data", `{"action":"POWER_CYCLE"}`, "--dry-run")
+	if code != 0 || !strings.Contains(out, "/devices/"+devID(2)+"/interfaces/ports/7/actions") {
+		t.Fatalf("exit %d, out %q, err %q", code, out, errOut)
 	}
 }
 
@@ -185,7 +230,7 @@ func TestUsageErrors(t *testing.T) {
 		want string
 	}{
 		{[]string{"devices", "get"}, "want 1"},
-		{[]string{"devices", "get", "not-a-uuid", "--site", siteID}, "must be a UUID"},
+		{[]string{"firewall", "policies", "ordering", "get", "--site", siteID, "--source-firewall-zone-id", "x", "--destination-firewall-zone-id", "y"}, "must be a UUID"},
 		{[]string{"dns", "policies", "create", "--site", siteID}, "--data is required"},
 		{[]string{"dns", "policies", "create", "--site", siteID, "--data", "{nope"}, "not valid JSON"},
 		{[]string{"devices", "list", "--bogus"}, "flag provided but not defined"},
@@ -267,5 +312,18 @@ func TestSchemaVariants(t *testing.T) {
 	a, ok := s.Variants["A_RECORD"]
 	if !ok || a.Properties["type"]["const"] != "A_RECORD" || a.Properties["ipv4Address"] == nil {
 		t.Fatalf("A_RECORD variant = %+v", a)
+	}
+}
+
+// Every UUID path arg should be resolvable by name, so a spec update that
+// breaks the "list lives at the parent path" convention is caught.
+func TestEveryUUIDArgHasLookup(t *testing.T) {
+	for i := range spec.Ops {
+		op := &spec.Ops[i]
+		for _, a := range op.Args {
+			if a.Format == "uuid" && lookupOp(op, a) == nil {
+				t.Errorf("%s <%s>: no list op at the parent path", op.Name(), a.Flag)
+			}
+		}
 	}
 }

@@ -23,7 +23,11 @@ func opHelp(w io.Writer, op *spec.Op) error {
 	if len(op.Args) > 0 {
 		fmt.Fprintf(w, "\nArguments:\n")
 		for _, a := range op.Args {
-			fmt.Fprintf(w, "  %-28s %s\n", "<"+a.Flag+">", paramDoc(a))
+			doc := paramDoc(a)
+			if l := lookupOp(op, a); l != nil {
+				doc += fmt.Sprintf("; or a name/MAC/IP matched against `unifi %s` (one extra request).", l.Name())
+			}
+			fmt.Fprintf(w, "  %-28s %s\n", "<"+a.Flag+">", doc)
 		}
 	}
 
