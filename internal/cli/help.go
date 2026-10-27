@@ -44,6 +44,7 @@ func opHelp(w io.Writer, op *spec.Op) error {
 			req = "required"
 		}
 		fmt.Fprintf(w, "  %-28s %s\n", "--data <json>", "request body ("+req+"): inline JSON, @file, or - for stdin")
+		fmt.Fprintf(w, "  %-28s %s\n", "--no-validate", "skip checking --data against this schema (e.g. firmware newer than the spec)")
 	}
 	if op.Destructive {
 		fmt.Fprintf(w, "  %-28s %s\n", "--yes", "confirm this destructive operation (required)")

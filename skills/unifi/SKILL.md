@@ -55,6 +55,7 @@ Quote the whole filter for the shell: `--filter "and(type.eq('WIRED'), ipAddress
 2. For updates (PUT), `get` the object first and send back the full modified object. PUT replaces the whole object.
 3. Pass the body with `--data '<json>'`, `--data @file.json`, or `--data -` (stdin).
 4. Preview with `--dry-run`: it prints the method, URL and body without sending anything.
+   `--data` is checked against the spec before anything is sent (also on `--dry-run`): schema violations exit 2 with one line per problem, e.g. `$.ttlSeconds: must be an integer`. Fix the body rather than reaching for `--no-validate`; use that only when the console's own error shows the spec is out of date. Properties the spec doesn't know produce a stderr warning (often a typo) but are still sent.
 5. Destructive commands (deletes, device/port/client actions such as restart, power-cycle or block, and unadopt) refuse to run without `--yes`. **Always confirm with the user before adding `--yes`**, and state exactly what will happen, e.g. "restart the U7 Pro in the office".
 
 Creating or updating networks, WiFi, firewall policies, ACLs and DNS also changes live network behavior. Confirm those with the user too, even though they don't need `--yes`.

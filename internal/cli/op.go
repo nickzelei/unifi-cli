@@ -28,8 +28,10 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 		query[p.Name] = fs.String(p.Flag, "", p.Description)
 	}
 	var data string
+	var noValidate bool
 	if op.Body {
 		fs.StringVar(&data, "data", "", "request body: JSON, @file, or - for stdin")
+		fs.BoolVar(&noValidate, "no-validate", false, "send --data without checking it against the spec")
 	}
 	var all bool
 	if op.Paged {
@@ -67,6 +69,11 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 	}
 	if op.BodyRequired && body == nil {
 		return usagef("--data is required; run `unifi %s --help` for the body schema", op.Name())
+	}
+	if body != nil && !noValidate {
+		if err := validateBody(op, body, io); err != nil {
+			return err
+		}
 	}
 	if op.Destructive && !g.yes && !g.dryRun {
 		return usagef("%q is destructive (%s %s); re-run with --yes to confirm", op.Name(), op.Method, op.Path)
@@ -121,6 +128,24 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 		return err
 	}
 	return emit(io, out, g.pretty, g.fieldList())
+}
+
+// validateBody checks --data against the embedded spec. Violations are a
+// usage error; properties the spec doesn't know are only warned about, since
+// newer firmware may accept them.
+func validateBody(op *spec.Op, body []byte, io IO) error {
+	res, err := spec.Validate(op, body)
+	if err != nil {
+		return fmt.Errorf("validate --data: %w", err)
+	}
+	for _, w := range res.Warnings {
+		fmt.Fprintf(io.Err, "unifi: warning: --data %s (spec %s)\n", w, spec.SpecVersion)
+	}
+	if len(res.Errors) == 0 {
+		return nil
+	}
+	return usagef("--data does not match the %s body schema (spec %s):\n  %s\nSee `unifi %s --help`, or pass --no-validate to send it anyway.",
+		op.Name(), spec.SpecVersion, strings.Join(res.Errors, "\n  "), op.Name())
 }
 
 func checkType(p spec.Param, v string) error {

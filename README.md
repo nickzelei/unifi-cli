@@ -3,7 +3,7 @@
 A small, dependency-free Go CLI for the official [UniFi Network integration API](https://developer.ui.com/network/), built mainly for AI agents to drive (see [skills/unifi/SKILL.md](skills/unifi/SKILL.md)).
 
 - **Full coverage, generated:** every operation in the OpenAPI spec is a command. The spec is committed and embedded, and `internal/cmd/gen` turns it into a plain Go table ([internal/spec/ops_gen.go](internal/spec/ops_gen.go)). New firmware means fetch, regenerate, review the diff.
-- **Built for agents:** JSON output, `--fields` projection, `--all` pagination, `--dry-run`, request body schemas in `--help` (polymorphic bodies flattened into concrete variants), and `--yes` required for destructive operations.
+- **Built for agents:** JSON output, `--fields` projection, `--all` pagination, `--dry-run`, `--data` checked against the spec before sending, request body schemas in `--help` (polymorphic bodies flattened into concrete variants), and `--yes` required for destructive operations.
 - **Standard library only.** No third-party modules.
 
 ## Install

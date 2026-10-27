@@ -202,6 +202,19 @@ func TestDestructiveNeedsYes(t *testing.T) {
 	}
 }
 
+func TestNoValidateAndWarnings(t *testing.T) {
+	m := setup(t)
+	args := []string{"devices", "action", deviceID, "--site", siteID, "--yes"}
+	code, _, errOut := run(t, "", append(args, "--data", `{"action":"REBOOT"}`, "--no-validate")...)
+	if code != 0 || len(m.seen()) != 1 {
+		t.Fatalf("--no-validate: exit %d, stderr %q, requests %v", code, errOut, m.seen())
+	}
+	code, _, errOut = run(t, "", append(args, "--data", `{"action":"RESTART","later":true}`)...)
+	if code != 0 || !strings.Contains(errOut, "warning: --data $.later: not in the spec") {
+		t.Fatalf("unknown field: exit %d, stderr %q", code, errOut)
+	}
+}
+
 func TestDryRun(t *testing.T) {
 	m := setup(t)
 	code, out, errOut := run(t, `{"action":"RESTART"}`, "devices", "action", deviceID, "--data", "-", "--site", siteID, "--dry-run")
@@ -234,6 +247,7 @@ func TestUsageErrors(t *testing.T) {
 		{[]string{"dns", "policies", "create", "--site", siteID}, "--data is required"},
 		{[]string{"dns", "policies", "create", "--site", siteID, "--data", "{nope"}, "not valid JSON"},
 		{[]string{"devices", "list", "--bogus"}, "flag provided but not defined"},
+		{[]string{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"REBOOT"}`, "--yes"}, `$.action: must be one of RESTART, got "REBOOT"`},
 		{[]string{"devices", "list", "--limit", "x"}, "must be an integer"},
 		{[]string{"firewall", "policies", "ordering", "get", "--site", siteID}, "--source-firewall-zone-id is required"},
 		{[]string{"nope"}, "unknown command"},
