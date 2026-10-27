@@ -8,9 +8,15 @@ A small, dependency-free Go CLI for the official [UniFi Network integration API]
 
 ## Install
 
+Download an archive for your platform (macOS or Linux, arm64 or amd64) from [Releases](https://github.com/nickzelei/unifi-cli/releases), then check it and put `unifi` on your `PATH`:
+
 ```bash
-mise run install        # or: go install github.com/nickzelei/unifi-cli/cmd/unifi@latest
+shasum -a 256 -c checksums.txt --ignore-missing
+gh attestation verify unifi_*.tar.gz --repo nickzelei/unifi-cli   # optional: built by this repo's release workflow
+tar -xzf unifi_*.tar.gz && mv unifi_*/unifi ~/.local/bin/
 ```
+
+Or build from source with `go install github.com/nickzelei/unifi-cli/cmd/unifi@latest`, or `mise run install` in a checkout.
 
 ## Configure
 
@@ -60,6 +66,7 @@ mise run skill:install   # symlinks skills/unifi into ~/.claude/skills
 | `mise run check` | lint, test, and verify `ops_gen.go` matches the spec |
 | `mise run spec:update` | fetch the spec from your console, regenerate |
 | `mise run spec:fetch -- --url <url>` | fetch from a URL instead, e.g. `https://developer.ui.com/network/v10.6.106/openapi.json` |
+| `mise run release:build` | cross-compile release archives and `checksums.txt` into `dist/` (CI runs this when a `v*` tag is pushed) |
 | `mise run gen` | regenerate `ops_gen.go` from the committed spec |
 
 Command names come from the API paths: `/v1/sites/{siteId}/dns/policies/{id}` becomes `dns policies get|update|delete <dns-policy-id>`. Operations those rules can't name (actions, sub-resources) need an explicit entry in `overrides` in [internal/cmd/gen/main.go](internal/cmd/gen/main.go). Generation fails loudly on a missing override or a name collision, so new endpoints always get a deliberate name.
