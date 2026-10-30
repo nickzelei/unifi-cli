@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/nickzelei/unifi-cli/internal/spec"
+	"github.com/nickzelei/unifi-cli/internal/unifi"
 )
 
 const (
@@ -23,8 +24,9 @@ const (
 
 // mock is a fake console that records requests.
 type mock struct {
-	mu   sync.Mutex
-	reqs []string
+	mu      sync.Mutex
+	reqs    []string
+	version string // applicationVersion served by /v1/info
 }
 
 func (m *mock) seen() []string {
@@ -43,6 +45,12 @@ func (m *mock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p := r.URL.Path
 	switch {
+	case p == "/v1/info":
+		v := m.version
+		if v == "" {
+			v = spec.SpecVersion
+		}
+		fmt.Fprintf(w, `{"applicationVersion":%q}`, v)
 	case p == "/v1/sites":
 		fmt.Fprintf(w, `{"offset":0,"limit":200,"count":1,"totalCount":1,"data":[{"id":%q,"internalReference":"default","name":"Default"}]}`, siteID)
 	case p == "/v1/sites/"+siteID+"/devices":
@@ -82,6 +90,8 @@ func setup(t *testing.T) *mock {
 	t.Setenv("UNIFI_CONFIG", filepath.Join(t.TempDir(), "config.json"))
 	t.Setenv("UNIFI_BASE_URL", srv.URL)
 	t.Setenv("UNIFI_API_KEY", "test-key")
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("UNIFI_NO_VERSION_CHECK", "1")
 	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE"} {
 		t.Setenv(k, "")
 	}
@@ -339,5 +349,111 @@ func TestEveryUUIDArgHasLookup(t *testing.T) {
 				t.Errorf("%s <%s>: no list op at the parent path", op.Name(), a.Flag)
 			}
 		}
+	}
+}
+
+type doctorOut struct {
+	OK     bool
+	Checks []checkResult
+}
+
+func doctor(t *testing.T, args ...string) (int, map[string]checkResult, string) {
+	t.Helper()
+	code, out, errOut := run(t, "", append([]string{"doctor"}, args...)...)
+	var d doctorOut
+	if err := json.Unmarshal([]byte(out), &d); err != nil {
+		t.Fatalf("doctor output %q: %v (stderr %q)", out, err, errOut)
+	}
+	byName := map[string]checkResult{}
+	for _, c := range d.Checks {
+		byName[c.Name] = c
+	}
+	if (code == 0) != d.OK {
+		t.Fatalf("exit %d but ok=%v", code, d.OK)
+	}
+	return code, byName, errOut
+}
+
+func wantStatus(t *testing.T, checks map[string]checkResult, want map[string]string) {
+	t.Helper()
+	for name, status := range want {
+		if checks[name].Status != status {
+			t.Errorf("%s: status %q (%s), want %q", name, checks[name].Status, checks[name].Detail, status)
+		}
+	}
+}
+
+func TestDoctor(t *testing.T) {
+	setup(t)
+	code, checks, _ := doctor(t)
+	if code != 0 {
+		t.Fatalf("exit %d: %+v", code, checks)
+	}
+	wantStatus(t, checks, map[string]string{"config": "ok", "tls": "warn", "api_key": "ok", "api": "ok", "site": "ok", "spec": "ok"})
+	if !strings.Contains(checks["site"].Detail, siteID) {
+		t.Errorf("site detail %q", checks["site"].Detail)
+	}
+
+	t.Setenv("UNIFI_API_KEY", "")
+	code, checks, _ = doctor(t)
+	if code != exitErr {
+		t.Fatalf("no key: exit %d", code)
+	}
+	wantStatus(t, checks, map[string]string{"api_key": "fail", "api": "skip", "site": "skip", "spec": "skip"})
+}
+
+func TestDoctorNewerConsole(t *testing.T) {
+	m := setup(t)
+	m.version = "999.0.0"
+	code, checks, _ := doctor(t)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	wantStatus(t, checks, map[string]string{"spec": "warn"})
+	if !strings.Contains(checks["spec"].Detail, "newer than the embedded spec") {
+		t.Errorf("spec detail %q", checks["spec"].Detail)
+	}
+}
+
+func TestDoctorPinnedTLS(t *testing.T) {
+	setup(t)
+	srv := httptest.NewTLSServer(&mock{})
+	t.Cleanup(srv.Close)
+	t.Setenv("UNIFI_BASE_URL", srv.URL)
+	t.Setenv("UNIFI_TLS_FINGERPRINT", unifi.Fingerprint(srv.Certificate()))
+	code, checks, _ := doctor(t)
+	if code != 0 {
+		t.Fatalf("exit %d: %+v", code, checks)
+	}
+	wantStatus(t, checks, map[string]string{"tls": "ok", "api": "ok"})
+
+	t.Setenv("UNIFI_TLS_FINGERPRINT", strings.Repeat("ab", 32))
+	code, checks, _ = doctor(t)
+	if code != exitErr || !strings.Contains(checks["tls"].Detail, "certificate changed") {
+		t.Fatalf("wrong pin: exit %d, tls %+v", code, checks["tls"])
+	}
+	wantStatus(t, checks, map[string]string{"api": "skip"})
+}
+
+func TestDriftWarnsOncePerTTL(t *testing.T) {
+	m := setup(t)
+	m.version = "999.0.0"
+	t.Setenv("UNIFI_NO_VERSION_CHECK", "")
+	info := func() int {
+		n := 0
+		for _, r := range m.seen() {
+			if r == "GET /v1/info" {
+				n++
+			}
+		}
+		return n
+	}
+	code, out, errOut := run(t, "", "devices", "get", deviceID, "--site", siteID)
+	if code != 0 || !strings.Contains(out, deviceID) || !strings.Contains(errOut, "newer than this CLI's spec") || info() != 1 {
+		t.Fatalf("first run: exit %d, stderr %q, info requests %d", code, errOut, info())
+	}
+	code, _, errOut = run(t, "", "devices", "get", deviceID, "--site", siteID)
+	if code != 0 || errOut != "" || info() != 1 {
+		t.Fatalf("cached run: exit %d, stderr %q, info requests %d", code, errOut, info())
 	}
 }

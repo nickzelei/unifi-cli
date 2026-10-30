@@ -164,3 +164,21 @@ func TestMatchSite(t *testing.T) {
 		t.Error("unknown site should fail")
 	}
 }
+
+func TestCompareVersions(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want int
+	}{
+		{"10.6.109", "10.6.109", 0},
+		{"10.6.110", "10.6.109", 1},
+		{"10.10.0", "10.9.200", 1},
+		{"9.5.21", "10.0.0", -1},
+		{"10.6", "10.6.0", 0},
+		{"10.6.109-beta", "10.6.109", 0},
+	} {
+		if got := CompareVersions(c.a, c.b); got != c.want {
+			t.Errorf("CompareVersions(%q, %q) = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}

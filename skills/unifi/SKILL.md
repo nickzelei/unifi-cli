@@ -62,10 +62,12 @@ Creating or updating networks, WiFi, firewall policies, ACLs and DNS also change
 
 ## Gaps
 
-If an endpoint exists on the console but not in `unifi commands` (newer firmware), use the raw form:
+About once a day a command may print `warning: console runs UniFi Network X, newer than this CLI's spec`. The command itself still worked. If an endpoint exists on the console but not in `unifi commands` (newer firmware), use the raw form:
 `unifi api GET /v1/sites/{siteId}/<path> [--query k=v] [--data ...]`. `{siteId}` is filled in automatically, and non-GET requests need `--yes`.
 
 ## Troubleshooting
+
+Start with `unifi doctor`: it checks config, TLS, the API key, the API, the site and whether the console is newer than the CLI's spec, and prints a JSON list of checks with `ok`/`warn`/`fail`/`skip` and a detail for each.
 
 - `no host configured` / `no API key configured`: the user must run `unifi config init --host <ip> --api-key-cmd '<cmd>'` (the API key comes from UniFi Network → Settings → Control Plane → Integrations). Don't invent keys.
 - `certificate fingerprint mismatch`: the console certificate changed. Ask the user before re-running `unifi config init` to re-pin it.

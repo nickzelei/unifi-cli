@@ -22,7 +22,8 @@ Usage:
 
 Config file: $UNIFI_CONFIG, else $XDG_CONFIG_HOME/unifi/config.json, else ~/.config/unifi/config.json.
 Env overrides: UNIFI_PROFILE UNIFI_HOST UNIFI_BASE_URL UNIFI_API_KEY UNIFI_SITE
-               UNIFI_TLS_FINGERPRINT UNIFI_INSECURE
+               UNIFI_TLS_FINGERPRINT UNIFI_INSECURE UNIFI_NO_VERSION_CHECK
+Check a profile with: unifi doctor [--profile <name>]
 `)
 		return nil
 	}

@@ -34,6 +34,8 @@ unifi config init --host 192.168.1.1 --api-key-cmd "op read op://Private/UniFi/c
 - stores the site's UUID;
 - writes `~/.config/unifi/config.json` (mode 0600).
 
+`unifi doctor` re-checks all of this later (config, TLS pin and expiry, key, API, site) and compares the console's Network version with the CLI's embedded spec. Commands also warn on stderr, at most once a day, when the console is newer than the spec; the console's version is cached under the OS cache dir (`UNIFI_NO_VERSION_CHECK=1` turns this off).
+
 `--api-key` stores the key inline instead. Every setting can be overridden with an env var: `UNIFI_PROFILE`, `UNIFI_HOST`, `UNIFI_BASE_URL`, `UNIFI_API_KEY`, `UNIFI_SITE`, `UNIFI_TLS_FINGERPRINT`, `UNIFI_INSECURE`. Multiple consoles go in separate `--profile`s.
 
 ## Use

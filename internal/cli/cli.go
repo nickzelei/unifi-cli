@@ -103,6 +103,8 @@ func dispatch(ctx context.Context, args []string, io IO) error {
 		return apiCmd(ctx, args[1:], io)
 	case "config":
 		return configCmd(ctx, args[1:], io)
+	case "doctor":
+		return doctorCmd(ctx, args[1:], io)
 	}
 	if op, n := spec.Find(args); op != nil {
 		return runOp(ctx, op, args[n:], io)
@@ -211,6 +213,7 @@ Other commands:
   schema <name> [--depth N]          print a schema from the API spec (--list for all)
   api <METHOD> <path> [flags]        send a raw request, e.g. unifi api GET /v1/sites/{siteId}/wans
   config init|show|path              manage connection profiles
+  doctor                             check config, TLS, API key, site and spec version
   help filter                        --filter syntax for list commands
   version                            print versions
 
