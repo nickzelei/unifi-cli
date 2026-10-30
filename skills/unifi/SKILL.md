@@ -33,6 +33,8 @@ Most commands are site-scoped. The site defaults to the configured one, or the o
 
 ## Keep output small
 
+Output is JSON unless `-o table` or `UNIFI_OUTPUT=table` is set. Tables are for humans; always pass `-o json` if you need to parse the output and the user may have set `UNIFI_OUTPUT`.
+
 - `--fields a,b.c` keeps only those fields. On a page (`{data: [...], totalCount}`) it applies to each item and keeps the paging metadata. Arrays along a path are kept, e.g. `--fields id,interfaces.ports.idx`.
 - List commands return one page (default 25, max 200 via `--limit`). Check `totalCount`; use `--all` to fetch every page in one call.
 - `--filter` narrows lists server-side. The filterable fields for each list are in its `--help`.

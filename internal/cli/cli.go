@@ -222,6 +222,7 @@ Global flags (after the command):
   --profile <name>       config profile (default: $UNIFI_PROFILE or default_profile)
   --fields a,b.c         keep only these fields in the output (applies to each item of a page)
   --pretty               indent JSON output (default when stdout is a terminal)
+  -o, --output <fmt>     json (default) or table; set $UNIFI_OUTPUT=table to default to tables
   --dry-run              print the request instead of sending it
   --timeout <dur>        request timeout (default 30s)
 
@@ -309,6 +310,7 @@ type globals struct {
 	pretty  bool
 	dryRun  bool
 	yes     bool
+	output  string
 	timeout time.Duration
 }
 
@@ -319,7 +321,30 @@ func (g *globals) register(fs *flag.FlagSet) {
 	fs.BoolVar(&g.pretty, "pretty", false, "indent JSON output")
 	fs.BoolVar(&g.dryRun, "dry-run", false, "print the request instead of sending it")
 	fs.BoolVar(&g.yes, "yes", false, "confirm a destructive operation")
+	out := os.Getenv("UNIFI_OUTPUT")
+	if out == "" {
+		out = "json"
+	}
+	fs.StringVar(&g.output, "output", out, "output format: json or table (default: $UNIFI_OUTPUT or json)")
+	fs.StringVar(&g.output, "o", out, "shorthand for --output")
 	fs.DurationVar(&g.timeout, "timeout", 30*time.Second, "request timeout")
+}
+
+// checkOutput validates --output before any request is made.
+func (g *globals) checkOutput() error {
+	switch g.output {
+	case "json", "table":
+		return nil
+	}
+	return usagef("--output must be json or table, got %q", g.output)
+}
+
+// emit prints a response in the chosen format.
+func (g *globals) emit(io IO, body []byte) error {
+	if g.output == "table" {
+		return emitTable(io, body, g.fieldList())
+	}
+	return emit(io, body, g.pretty, g.fieldList())
 }
 
 func (g *globals) fieldList() []string {

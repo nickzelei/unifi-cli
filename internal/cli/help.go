@@ -49,7 +49,7 @@ func opHelp(w io.Writer, op *spec.Op) error {
 	if op.Destructive {
 		fmt.Fprintf(w, "  %-28s %s\n", "--yes", "confirm this destructive operation (required)")
 	}
-	fmt.Fprintf(w, "  %-28s %s\n", "global", "--site --profile --fields --pretty --dry-run --timeout")
+	fmt.Fprintf(w, "  %-28s %s\n", "global", "--site --profile --fields --pretty -o/--output --dry-run --timeout")
 
 	if op.Body {
 		sch, err := spec.RequestSchema(op)

@@ -457,3 +457,39 @@ func TestDriftWarnsOncePerTTL(t *testing.T) {
 		t.Fatalf("cached run: exit %d, stderr %q, info requests %d", code, errOut, info())
 	}
 }
+
+func TestTableOutput(t *testing.T) {
+	setup(t)
+	code, out, errOut := run(t, "", "devices", "list", "-o", "table", "--limit", "2")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) != 3 || strings.Join(strings.Fields(lines[0]), " ") != "name state macAddress ipAddress id" {
+		t.Fatalf("table:\n%s", out)
+	}
+	if f := strings.Fields(lines[1]); f[0] != "Device" || f[1] != "0" || f[len(f)-1] != devID(0) {
+		t.Fatalf("row %q", lines[1])
+	}
+	if !strings.Contains(errOut, "showing 2 of 5") {
+		t.Errorf("paging note missing: %q", errOut)
+	}
+
+	// --fields picks columns, dotted paths through arrays join with commas.
+	t.Setenv("UNIFI_OUTPUT", "table")
+	_, out, _ = run(t, "", "devices", "list", "--all", "--fields", "id,interfaces.ports.idx")
+	if lines := strings.Split(strings.TrimSpace(out), "\n"); len(lines) != 6 || !strings.HasSuffix(lines[5], " 1") {
+		t.Fatalf("--fields table:\n%s", out)
+	}
+
+	// A single object is field/value pairs.
+	_, out, _ = run(t, "", "devices", "get", deviceID, "--site", siteID)
+	if !strings.HasPrefix(out, "FIELD") || !strings.Contains(out, deviceID) {
+		t.Fatalf("object table:\n%s", out)
+	}
+
+	code, _, errOut = run(t, "", "devices", "list", "-o", "yaml")
+	if code != exitUsage || !strings.Contains(errOut, "json or table") {
+		t.Fatalf("bad format: exit %d, %q", code, errOut)
+	}
+}

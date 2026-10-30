@@ -47,6 +47,7 @@ unifi clients list --all --filter "type.eq('WIRELESS')"
 unifi dns policies create --help                 # body schema + variants
 unifi dns policies create --dry-run --data '{"type":"A_RECORD","enabled":true,"domain":"nas.lan","ipv4Address":"192.168.1.20","ttlSeconds":300}'
 unifi devices get office-ap                      # IDs: UUID, or name / MAC / IP
+unifi clients list -o table                      # human-readable; UNIFI_OUTPUT=table makes it the default
 unifi devices action <id> --data '{"action":"RESTART"}' --yes
 unifi api GET /v1/sites/{siteId}/wans            # raw escape hatch
 ```

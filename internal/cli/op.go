@@ -39,6 +39,9 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 	}
 
 	pos, err := parseInterleaved(fs, args)
+	if err == nil {
+		err = g.checkOutput()
+	}
 	if err != nil {
 		return flagErr(err, op.Name())
 	}
@@ -128,7 +131,7 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 		return err
 	}
 	checkDrift(ctx, c, io)
-	return emit(io, out, g.pretty, g.fieldList())
+	return g.emit(io, out)
 }
 
 // validateBody checks --data against the embedded spec. Violations are a

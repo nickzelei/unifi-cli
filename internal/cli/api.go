@@ -34,7 +34,7 @@ Flags:
   --query k=v      query parameter (repeatable)
   --data <json>    request body: inline JSON, @file, or - for stdin
   --yes            confirm a non-GET request
-  global           --site --profile --fields --pretty --dry-run --timeout
+  global           --site --profile --fields --pretty -o/--output --dry-run --timeout
 `)
 	}
 	var g globals
@@ -43,6 +43,9 @@ Flags:
 	fs.Var(&query, "query", "query parameter k=v (repeatable)")
 	data := fs.String("data", "", "request body")
 	pos, err := parseInterleaved(fs, args)
+	if err == nil {
+		err = g.checkOutput()
+	}
 	if err != nil {
 		return flagErr(err, "api")
 	}
@@ -95,5 +98,5 @@ Flags:
 	if err != nil {
 		return err
 	}
-	return emit(io, out, g.pretty, g.fieldList())
+	return g.emit(io, out)
 }
