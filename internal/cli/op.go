@@ -136,11 +136,10 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 	return g.emit(io, out)
 }
 
-// checkReadOnly refuses a non-GET request on a read-only profile before
-// anything else happens. --dry-run still works, since it sends nothing; the
-// client enforces the same rule on every request regardless.
+// checkReadOnly refuses early what the client would refuse, so the user gets a
+// usage error before any prompt or lookup. --dry-run sends nothing, so it's allowed.
 func checkReadOnly(cfg *unifi.Config, method string, dryRun bool) error {
-	if !cfg.Profile.ReadOnly || method == "GET" || dryRun {
+	if cfg.Profile.Allows(method) || dryRun {
 		return nil
 	}
 	return usagef("profile %q is read-only: %s requests are not allowed (set by read_only in %s or UNIFI_READ_ONLY)", cfg.Name, method, cfg.Path)

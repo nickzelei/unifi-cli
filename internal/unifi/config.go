@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -164,6 +165,12 @@ func truthy(v string) bool {
 		return true
 	}
 	return false
+}
+
+// Allows reports whether the profile may send a request with this method:
+// a read-only profile allows only GET.
+func (p Profile) Allows(method string) bool {
+	return !p.ReadOnly || method == http.MethodGet
 }
 
 // Base returns the integration API base URL, without a trailing slash.

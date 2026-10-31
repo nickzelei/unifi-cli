@@ -57,12 +57,8 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("HTTP %d %s (%s %s)", e.Status, msg, e.Method, e.URL)
 }
 
-// ReadOnlyError is a non-GET request refused because the profile is read-only.
-type ReadOnlyError struct{ Method, URL string }
-
-func (e *ReadOnlyError) Error() string {
-	return fmt.Sprintf("read-only: refusing %s %s (read_only is set in the profile or UNIFI_READ_ONLY)", e.Method, e.URL)
-}
+// ErrReadOnly is returned for a request a read-only profile doesn't allow.
+var ErrReadOnly = errors.New("read-only profile")
 
 // NewClient builds a client for the profile.
 func NewClient(p Profile, timeout time.Duration) (*Client, error) {
@@ -96,11 +92,10 @@ func (c *Client) Do(ctx context.Context, method, path string, q url.Values, body
 	return c.DoURL(ctx, method, c.URL(path, q), body)
 }
 
-// DoURL sends a request to an absolute URL on the console. A read-only
-// profile allows only GET.
+// DoURL sends a request to an absolute URL on the console.
 func (c *Client) DoURL(ctx context.Context, method, u string, body []byte) ([]byte, error) {
-	if c.profile.ReadOnly && method != http.MethodGet {
-		return nil, &ReadOnlyError{Method: method, URL: u}
+	if !c.profile.Allows(method) {
+		return nil, fmt.Errorf("%w: refusing %s %s", ErrReadOnly, method, u)
 	}
 	if c.key == "" {
 		k, err := c.profile.ResolveAPIKey(ctx)

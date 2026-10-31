@@ -24,8 +24,7 @@ Usage:
 Config file: $UNIFI_CONFIG, else $XDG_CONFIG_HOME/unifi/config.json, else ~/.config/unifi/config.json.
 Env overrides: UNIFI_PROFILE UNIFI_HOST UNIFI_BASE_URL UNIFI_API_KEY UNIFI_SITE
                UNIFI_TLS_FINGERPRINT UNIFI_INSECURE UNIFI_READ_ONLY UNIFI_NO_VERSION_CHECK
-Read-only: config init --read-only (or UNIFI_READ_ONLY=1) allows only GET requests.
-           UNIFI_READ_ONLY can't turn off a profile's read_only; config init --read-only=false does.
+Read-only: config init --read-only, or UNIFI_READ_ONLY=1, allows only GET requests.
 Check a profile with: unifi doctor [--profile <name>]
 `)
 		return nil
@@ -59,7 +58,7 @@ func configInit(ctx context.Context, args []string, io IO) error {
 	insecure := fs.Bool("insecure", false, "disable TLS verification (not recommended)")
 	skipCheck := fs.Bool("skip-check", false, "save without contacting the console")
 	makeDefault := fs.Bool("default", false, "make this the default profile")
-	readOnly := fs.Bool("read-only", false, "allow only GET requests with this profile (kept on re-init unless --read-only=false)")
+	readOnly := fs.Bool("read-only", false, "allow only GET requests (re-init keeps it; --read-only=false clears it)")
 	if err := fs.Parse(args); err != nil {
 		return flagErr(err, "config init")
 	}
@@ -99,9 +98,11 @@ func configInit(ctx context.Context, args []string, io IO) error {
 		p.Site = *site
 	}
 	p.Insecure = *insecure
-	if flagSet(fs, "read-only") {
-		p.ReadOnly = *readOnly
-	}
+	fs.Visit(func(f *flag.Flag) { // only when given, so a re-init keeps it
+		if f.Name == "read-only" {
+			p.ReadOnly = *readOnly
+		}
+	})
 	if p.Host == "" && p.BaseURL == "" {
 		return usagef("--host is required (or run `unifi config init` with no flags at a terminal to be prompted)")
 	}
@@ -178,12 +179,6 @@ func configInit(ctx context.Context, args []string, io IO) error {
 		fmt.Fprintln(io.Err, "unifi: saved. Check it any time with `unifi doctor`.")
 	}
 	return nil
-}
-
-func flagSet(fs *flag.FlagSet, name string) bool {
-	set := false
-	fs.Visit(func(f *flag.Flag) { set = set || f.Name == name })
-	return set
 }
 
 func configShow(args []string, io IO) error {

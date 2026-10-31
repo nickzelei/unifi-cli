@@ -296,30 +296,30 @@ func TestRawAPI(t *testing.T) {
 func TestReadOnly(t *testing.T) {
 	m := setup(t)
 	t.Setenv("UNIFI_READ_ONLY", "1")
-	if code, out, errOut := run(t, "", "devices", "list", "--site", siteID); code != 0 || !strings.Contains(out, "Device 0") {
-		t.Fatalf("GET: exit %d, out %q, err %q", code, out, errOut)
-	}
-	sent := len(m.seen())
-	refused := [][]string{
-		{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`},
-		{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--yes"},
-		{"api", "DELETE", "/v1/sites/{siteId}/networks/x", "--yes"},
-		{"api", "post", "/v1/sites/{siteId}/networks"},
-	}
-	for _, args := range refused {
+	restart := []string{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`}
+	refused := func(args ...string) {
+		t.Helper()
+		sent := len(m.seen())
 		code, _, errOut := run(t, "", args...)
 		if code != exitUsage || !strings.Contains(errOut, "is read-only") {
 			t.Errorf("%v: exit %d, stderr %q", args, code, errOut)
 		}
+		if got := m.seen(); len(got) != sent {
+			t.Errorf("%v: sent requests %v", args, got[sent:])
+		}
 	}
-	if got := m.seen(); len(got) != sent {
-		t.Fatalf("read-only sent requests: %v", got[sent:])
-	}
-	if code, _, errOut := run(t, "", "devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--dry-run"); code != 0 {
-		t.Fatalf("dry run: exit %d: %s", code, errOut)
-	}
-	if code, _, errOut := run(t, "", "api", "GET", "/v1/sites/{siteId}/wans"); code != 0 {
-		t.Fatalf("raw GET: exit %d: %s", code, errOut)
+	refused(restart...)
+	refused(append(restart, "--yes")...)
+	refused("api", "DELETE", "/v1/sites/{siteId}/networks/x", "--yes")
+	refused("api", "post", "/v1/sites/{siteId}/networks")
+	for _, args := range [][]string{
+		{"devices", "list", "--site", siteID},
+		{"api", "GET", "/v1/sites/{siteId}/wans"},
+		append(restart, "--dry-run"),
+	} {
+		if code, _, errOut := run(t, "", args...); code != 0 {
+			t.Errorf("%v: exit %d: %s", args, code, errOut)
+		}
 	}
 
 	// The env var can't switch off a read-only profile.
@@ -329,9 +329,7 @@ func TestReadOnly(t *testing.T) {
 	if err := unifi.WriteFile(path, &unifi.File{Profiles: map[string]unifi.Profile{"default": {ReadOnly: true}}}); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, errOut := run(t, "", "devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--yes"); code != exitUsage || !strings.Contains(errOut, "is read-only") {
-		t.Fatalf("profile read_only: exit %d, stderr %q", code, errOut)
-	}
+	refused(append(restart, "--yes")...)
 }
 
 func TestHelpRendersForEveryOp(t *testing.T) {

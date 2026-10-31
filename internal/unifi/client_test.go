@@ -90,9 +90,8 @@ func TestReadOnlyClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, m := range []string{"POST", "PUT", "PATCH", "DELETE", "get"} {
-		var ro *ReadOnlyError
-		if _, err := c.Do(context.Background(), m, "/v1/info", nil, nil); !errors.As(err, &ro) {
-			t.Errorf("%s: want ReadOnlyError, got %v", m, err)
+		if _, err := c.Do(context.Background(), m, "/v1/info", nil, nil); !errors.Is(err, ErrReadOnly) {
+			t.Errorf("%s: want ErrReadOnly, got %v", m, err)
 		}
 	}
 }
