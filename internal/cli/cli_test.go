@@ -74,7 +74,7 @@ func (m *mock) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(p, "/v1/sites/"+siteID+"/devices/"):
 		fmt.Fprintf(w, `{"id":%q}`, strings.TrimPrefix(p, "/v1/sites/"+siteID+"/devices/"))
 	case p == "/v1/sites/"+siteID+"/wans":
-		w.Write([]byte(`{"data":[{"name":"WAN1"}],"totalCount":1}`))
+		_, _ = w.Write([]byte(`{"data":[{"name":"WAN1"}],"totalCount":1}`))
 	default:
 		http.Error(w, `{"statusCode":404,"message":"not found"}`, http.StatusNotFound)
 	}
@@ -238,7 +238,7 @@ func TestDryRun(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &req); err != nil {
 		t.Fatal(err)
 	}
-	if req.Method != "POST" || !strings.HasSuffix(req.URL, "/v1/sites/"+siteID+"/devices/"+deviceID+"/actions") || req.Body["action"] != "RESTART" {
+	if req.Method != http.MethodPost || !strings.HasSuffix(req.URL, "/v1/sites/"+siteID+"/devices/"+deviceID+"/actions") || req.Body["action"] != "RESTART" {
 		t.Fatalf("dry run = %+v", req)
 	}
 	if len(m.seen()) != 0 {
@@ -357,9 +357,9 @@ type doctorOut struct {
 	Checks []checkResult
 }
 
-func doctor(t *testing.T, args ...string) (int, map[string]checkResult, string) {
+func doctor(t *testing.T) (int, map[string]checkResult) {
 	t.Helper()
-	code, out, errOut := run(t, "", append([]string{"doctor"}, args...)...)
+	code, out, errOut := run(t, "", "doctor")
 	var d doctorOut
 	if err := json.Unmarshal([]byte(out), &d); err != nil {
 		t.Fatalf("doctor output %q: %v (stderr %q)", out, err, errOut)
@@ -371,7 +371,7 @@ func doctor(t *testing.T, args ...string) (int, map[string]checkResult, string) 
 	if (code == 0) != d.OK {
 		t.Fatalf("exit %d but ok=%v", code, d.OK)
 	}
-	return code, byName, errOut
+	return code, byName
 }
 
 func wantStatus(t *testing.T, checks map[string]checkResult, want map[string]string) {
@@ -385,7 +385,7 @@ func wantStatus(t *testing.T, checks map[string]checkResult, want map[string]str
 
 func TestDoctor(t *testing.T) {
 	setup(t)
-	code, checks, _ := doctor(t)
+	code, checks := doctor(t)
 	if code != 0 {
 		t.Fatalf("exit %d: %+v", code, checks)
 	}
@@ -395,7 +395,7 @@ func TestDoctor(t *testing.T) {
 	}
 
 	t.Setenv("UNIFI_API_KEY", "")
-	code, checks, _ = doctor(t)
+	code, checks = doctor(t)
 	if code != exitErr {
 		t.Fatalf("no key: exit %d", code)
 	}
@@ -405,7 +405,7 @@ func TestDoctor(t *testing.T) {
 func TestDoctorNewerConsole(t *testing.T) {
 	m := setup(t)
 	m.version = "999.0.0"
-	code, checks, _ := doctor(t)
+	code, checks := doctor(t)
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
@@ -421,14 +421,14 @@ func TestDoctorPinnedTLS(t *testing.T) {
 	t.Cleanup(srv.Close)
 	t.Setenv("UNIFI_BASE_URL", srv.URL)
 	t.Setenv("UNIFI_TLS_FINGERPRINT", unifi.Fingerprint(srv.Certificate()))
-	code, checks, _ := doctor(t)
+	code, checks := doctor(t)
 	if code != 0 {
 		t.Fatalf("exit %d: %+v", code, checks)
 	}
 	wantStatus(t, checks, map[string]string{"tls": "ok", "api": "ok"})
 
 	t.Setenv("UNIFI_TLS_FINGERPRINT", strings.Repeat("ab", 32))
-	code, checks, _ = doctor(t)
+	code, checks = doctor(t)
 	if code != exitErr || !strings.Contains(checks["tls"].Detail, "certificate changed") {
 		t.Fatalf("wrong pin: exit %d, tls %+v", code, checks["tls"])
 	}

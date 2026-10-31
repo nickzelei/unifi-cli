@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -64,11 +65,12 @@ func (v *validator) responseProps(op *Op) map[string]bool {
 	out := map[string]bool{}
 	for i := range Ops {
 		g := &Ops[i]
-		if g.Method != "GET" || g.Response == "" {
+		if g.Method != http.MethodGet || g.Response == "" {
 			continue
 		}
 		rest, ok := strings.CutPrefix(g.Path, op.Path)
-		if !ok || !(rest == "" || strings.HasPrefix(rest, "/{") && strings.Count(rest, "/") == 1) {
+		same := rest == "" || strings.HasPrefix(rest, "/{") && strings.Count(rest, "/") == 1
+		if !ok || !same {
 			continue
 		}
 		s := v.resolve(map[string]any{"$ref": refPrefix + g.Response})

@@ -16,7 +16,7 @@ func tlsServer(t *testing.T) (*httptest.Server, *string) {
 	var gotKey string
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotKey = r.Header.Get("X-API-Key")
-		w.Write([]byte(`{"applicationVersion":"10.6.109"}`))
+		_, _ = w.Write([]byte(`{"applicationVersion":"10.6.109"}`))
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &gotKey

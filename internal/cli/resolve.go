@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/nickzelei/unifi-cli/internal/spec"
@@ -24,7 +25,7 @@ func lookupOp(op *spec.Op, a spec.Param) *spec.Op {
 	}
 	prefix := op.Path[:i]
 	for j := range spec.Ops {
-		if l := &spec.Ops[j]; l.Paged && l.Method == "GET" && l.Path == prefix {
+		if l := &spec.Ops[j]; l.Paged && l.Method == http.MethodGet && l.Path == prefix {
 			return l
 		}
 	}
