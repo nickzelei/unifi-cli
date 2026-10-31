@@ -86,3 +86,7 @@ internal/unifi/     config, HTTP client, TLS pinning, site resolution
 internal/cmd/gen/   spec fetcher + op table generator
 skills/unifi/       agent skill
 ```
+
+## License
+
+[MIT](LICENSE)
