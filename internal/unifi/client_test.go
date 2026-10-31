@@ -96,6 +96,20 @@ func TestReadOnlyClient(t *testing.T) {
 	}
 }
 
+func TestReadOnlyEnvFailsClosed(t *testing.T) {
+	t.Setenv("UNIFI_CONFIG", filepath.Join(t.TempDir(), "config.json"))
+	for v, want := range map[string]bool{"": false, "0": false, "false": false, "No": false, "off": false, "1": true, "on": true, "y": true, "enabled": true} {
+		t.Setenv("UNIFI_READ_ONLY", v)
+		cfg, err := Load("")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Profile.ReadOnly != want {
+			t.Errorf("UNIFI_READ_ONLY=%q: read-only %v, want %v", v, cfg.Profile.ReadOnly, want)
+		}
+	}
+}
+
 func TestLoadProfilesAndEnv(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")

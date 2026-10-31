@@ -432,6 +432,14 @@ func TestDoctor(t *testing.T) {
 	if !strings.Contains(checks["site"].Detail, siteID) {
 		t.Errorf("site detail %q", checks["site"].Detail)
 	}
+	if !strings.HasSuffix(checks["config"].Detail, "; read-write") {
+		t.Errorf("config detail %q", checks["config"].Detail)
+	}
+	t.Setenv("UNIFI_READ_ONLY", "1")
+	if _, checks = doctor(t); !strings.HasSuffix(checks["config"].Detail, "; read-only") {
+		t.Errorf("read-only config detail %q", checks["config"].Detail)
+	}
+	t.Setenv("UNIFI_READ_ONLY", "")
 
 	t.Setenv("UNIFI_API_KEY", "")
 	code, checks = doctor(t)

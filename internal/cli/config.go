@@ -24,7 +24,7 @@ Usage:
 Config file: $UNIFI_CONFIG, else $XDG_CONFIG_HOME/unifi/config.json, else ~/.config/unifi/config.json.
 Env overrides: UNIFI_PROFILE UNIFI_HOST UNIFI_BASE_URL UNIFI_API_KEY UNIFI_SITE
                UNIFI_TLS_FINGERPRINT UNIFI_INSECURE UNIFI_READ_ONLY UNIFI_NO_VERSION_CHECK
-Read-only: config init --read-only, or UNIFI_READ_ONLY=1, allows only GET requests.
+Read-only: config init --read-only (this profile), or UNIFI_READ_ONLY=1 (every profile), allows only GET requests.
 Check a profile with: unifi doctor [--profile <name>]
 `)
 		return nil

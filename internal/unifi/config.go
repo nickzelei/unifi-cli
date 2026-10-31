@@ -153,10 +153,19 @@ func applyEnv(p *Profile) {
 	if truthy(os.Getenv("UNIFI_INSECURE")) {
 		p.Insecure = true
 	}
-	// UNIFI_READ_ONLY can only turn read-only on, never off a profile that has it.
-	if truthy(os.Getenv("UNIFI_READ_ONLY")) {
+	// UNIFI_READ_ONLY can only turn read-only on, never off a profile that has
+	// it. It fails closed: any value but an explicit 0/false/no/off enables it.
+	if v := os.Getenv("UNIFI_READ_ONLY"); v != "" && !falsy(v) {
 		p.ReadOnly = true
 	}
+}
+
+func falsy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "0", "false", "no", "off":
+		return true
+	}
+	return false
 }
 
 func truthy(v string) bool {

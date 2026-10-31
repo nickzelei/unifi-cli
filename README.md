@@ -62,7 +62,7 @@ Run `unifi config init` with no flags at a terminal to be prompted for each sett
 
 ### Read-only
 
-`unifi config init --read-only` (kept on re-init; `--read-only=false` clears it), or `UNIFI_READ_ONLY=1` for one shell or agent, makes the CLI send only GET requests. Anything else is refused before it's sent, even with `--yes`; `--dry-run` still works. The env var can only turn read-only on. It's a guardrail in the CLI, not a permission: for a hard limit, use an API key that can only read, if your console supports that.
+`unifi config init --read-only` (kept on re-init; `--read-only=false` clears it), or `UNIFI_READ_ONLY=1` for one shell or agent, makes the CLI send only GET requests. Anything else is refused before it's sent, even with `--yes`; `--dry-run` still works. The env var can only turn read-only on, and unlike the profile setting it covers every profile, so set it in an agent's environment when other profiles exist. It's a guardrail in the CLI, not a permission: for a hard limit, use an API key that can only read, if your console supports that.
 
 ## Use
 
