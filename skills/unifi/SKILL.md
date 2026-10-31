@@ -71,7 +71,8 @@ About once a day a command may print `warning: console runs UniFi Network X, new
 
 Start with `unifi doctor`: it checks config, TLS, the API key, the API, the site and whether the console is newer than the CLI's spec, and prints a JSON list of checks with `ok`/`warn`/`fail`/`skip` and a detail for each.
 
-- `no host configured` / `no API key configured`: the user must run `unifi config init --host <ip> --api-key-cmd '<cmd>'` (the API key comes from UniFi Network → Settings → Control Plane → Integrations). Don't invent keys.
+- `no host configured` / `no API key configured`: the user must run `unifi config init --host <ip> --api-key-cmd '<cmd>'`, or `unifi config init` with no flags in their own terminal to be prompted (the API key comes from UniFi Network → Settings → Control Plane → Integrations). Don't invent keys, and don't ask for the key in chat.
 - `certificate fingerprint mismatch`: the console certificate changed. Ask the user before re-running `unifi config init` to re-pin it.
 - `HTTP 401`: bad or revoked API key. `HTTP 404`: wrong ID or site. `HTTP 400`: the body didn't match the schema; re-read `--help`.
 - `unifi config show` prints the active profile, with the key redacted.
+- This skill ships inside the binary: `unifi skill install` rewrites it for the installed version.

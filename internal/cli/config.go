@@ -17,6 +17,7 @@ func configCmd(ctx context.Context, args []string, io IO) error {
 
 Usage:
   unifi config init --host <ip> [--api-key-cmd <cmd>] [--site <s>] [flags]
+  unifi config init                (no flags, at a terminal: prompts for each setting)
   unifi config show [--profile <name>]
   unifi config path
 
@@ -71,6 +72,13 @@ func configInit(ctx context.Context, args []string, io IO) error {
 	if err != nil {
 		return err
 	}
+	// No flags at a terminal: ask for them instead.
+	interactive := fs.NFlag() == 0 && io.InTTY
+	if interactive {
+		if err := promptInit(ctx, io, f, initAnswers{name, host, keyCmd, key, site}); err != nil {
+			return err
+		}
+	}
 	p := f.Profiles[*name]
 	if *host != "" {
 		p.Host = *host
@@ -89,7 +97,7 @@ func configInit(ctx context.Context, args []string, io IO) error {
 	}
 	p.Insecure = *insecure
 	if p.Host == "" && p.BaseURL == "" {
-		return usagef("--host is required")
+		return usagef("--host is required (or run `unifi config init` with no flags at a terminal to be prompted)")
 	}
 
 	result := map[string]any{"profile": *name, "path": path}
@@ -157,7 +165,13 @@ func configInit(ctx context.Context, args []string, io IO) error {
 	result["settings"] = p.Redacted()
 	result["default_profile"] = f.DefaultProfile
 	b, _ := json.Marshal(result)
-	return emit(io, b, true, nil)
+	if err := emit(io, b, true, nil); err != nil {
+		return err
+	}
+	if interactive {
+		fmt.Fprintln(io.Err, "unifi: saved. Check it any time with `unifi doctor`.")
+	}
+	return nil
 }
 
 func configShow(args []string, io IO) error {

@@ -18,6 +18,26 @@ tar -xzf unifi_*.tar.gz && mv unifi_*/unifi ~/.local/bin/
 
 Or build from source with `go install github.com/nickzelei/unifi-cli/cmd/unifi@latest`, or `mise run install` in a checkout.
 
+### Install with an AI agent
+
+Paste this into Claude Code (or another coding agent):
+
+```text
+Install the unifi CLI from https://github.com/nickzelei/unifi-cli and set it up for me.
+1. Download the latest release's unifi_<version>_<os>_<arch>.tar.gz for this machine
+   (darwin or linux, arm64 or amd64) and checksums.txt from
+   https://github.com/nickzelei/unifi-cli/releases/latest.
+2. Verify it with `shasum -a 256 -c checksums.txt --ignore-missing` and stop if it fails.
+3. Extract it and put `unifi` in a directory on my PATH (e.g. ~/.local/bin); check `unifi version`.
+4. Run `unifi skill install` so you know how to use it.
+5. Help me run `unifi config init`. I need an API key from UniFi Network → Settings →
+   Control Plane → Integrations. Ask for my console's address and prefer
+   `--api-key-cmd` with my password manager (e.g. `op read ...`) over pasting the key;
+   never ask me to paste the key into this chat. I can also run `unifi config init`
+   myself with no flags to be prompted.
+6. Finish with `unifi doctor` and explain anything that isn't ok.
+```
+
 ## Configure
 
 Create an API key in UniFi Network → Settings → Control Plane → Integrations, then:
@@ -25,6 +45,8 @@ Create an API key in UniFi Network → Settings → Control Plane → Integratio
 ```bash
 unifi config init --host 192.168.1.1 --api-key-cmd "op read op://Private/UniFi/credential"
 ```
+
+Run `unifi config init` with no flags at a terminal to be prompted for each setting instead.
 
 `config init`:
 
@@ -57,8 +79,12 @@ ID arguments take a UUID as-is. Anything else is looked up in the matching list 
 ## Agent skill
 
 ```bash
-mise run skill:install   # symlinks skills/unifi into ~/.claude/skills
+unifi skill install                 # writes the bundled skill to ~/.claude/skills/unifi
+unifi skill install --dir <dir>     # another agent's skills directory
+mise run skill:install              # in a checkout: symlink skills/unifi instead, to track edits
 ```
+
+Re-run `unifi skill install` after upgrading to update the skill. It leaves a symlinked install alone unless you pass `--force`.
 
 ## Development
 
@@ -85,7 +111,7 @@ internal/cli/       commands, flags, help, output
 internal/spec/      embedded openapi.json, generated ops_gen.go, schema rendering
 internal/unifi/     config, HTTP client, TLS pinning, site resolution
 internal/cmd/gen/   spec fetcher + op table generator
-skills/unifi/       agent skill
+skills/unifi/       agent skill (embedded for `unifi skill install`)
 ```
 
 ## License
