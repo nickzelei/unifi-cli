@@ -51,11 +51,12 @@ type IO struct {
 	Out    io.Writer
 	Err    io.Writer
 	OutTTY bool
+	InTTY  bool // stdin is a terminal, so commands may prompt
 }
 
 // StdIO returns the real process streams.
 func StdIO() IO {
-	return IO{In: os.Stdin, Out: os.Stdout, Err: os.Stderr, OutTTY: isTerminal(os.Stdout)}
+	return IO{In: os.Stdin, Out: os.Stdout, Err: os.Stderr, OutTTY: isTerminal(os.Stdout), InTTY: isTerminal(os.Stdin)}
 }
 
 func isTerminal(f *os.File) bool {
@@ -105,6 +106,8 @@ func dispatch(ctx context.Context, args []string, io IO) error {
 		return configCmd(ctx, args[1:], io)
 	case "doctor":
 		return doctorCmd(ctx, args[1:], io)
+	case "skill":
+		return skillCmd(args[1:], io)
 	}
 	if op, n := spec.Find(args); op != nil {
 		return runOp(ctx, op, args[n:], io)
@@ -212,8 +215,9 @@ Other commands:
   commands [--json]                  list every API command with its summary
   schema <name> [--depth N]          print a schema from the API spec (--list for all)
   api <METHOD> <path> [flags]        send a raw request, e.g. unifi api GET /v1/sites/{siteId}/wans
-  config init|show|path              manage connection profiles
+  config init|show|path              manage connection profiles (init with no flags prompts)
   doctor                             check config, TLS, API key, site and spec version
+  skill install|show|path            install the agent skill (default: ~/.claude/skills)
   help filter                        --filter syntax for list commands
   version                            print versions
 
