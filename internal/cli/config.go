@@ -19,12 +19,15 @@ Usage:
   unifi config init --host <ip> [--api-key-cmd <cmd>] [--site <s>] [flags]
   unifi config init                (no flags, at a terminal: prompts for each setting)
   unifi config show [--profile <name>]
+  unifi config read-only [on|off] [--profile <name> | --all]
   unifi config path
 
 Config file: $UNIFI_CONFIG, else $XDG_CONFIG_HOME/unifi/config.json, else ~/.config/unifi/config.json.
 Env overrides: UNIFI_PROFILE UNIFI_HOST UNIFI_BASE_URL UNIFI_API_KEY UNIFI_SITE
                UNIFI_TLS_FINGERPRINT UNIFI_INSECURE UNIFI_READ_ONLY UNIFI_NO_VERSION_CHECK
-Read-only: config init --read-only (this profile), or UNIFI_READ_ONLY=1 (every profile), allows only GET requests.
+Read-only: allows only GET requests. Turn it on for one profile (config read-only on, or
+           config init --read-only), for every profile in the file (config read-only on --all),
+           or for this environment (UNIFI_READ_ONLY=1). Any of them is enough.
 Check a profile with: unifi doctor [--profile <name>]
 `)
 		return nil
@@ -34,6 +37,8 @@ Check a profile with: unifi doctor [--profile <name>]
 		return configInit(ctx, args[1:], io)
 	case "show":
 		return configShow(args[1:], io)
+	case "read-only":
+		return configReadOnly(args[1:], io)
 	case "path":
 		p, err := unifi.ConfigPath()
 		if err != nil {
@@ -42,7 +47,7 @@ Check a profile with: unifi doctor [--profile <name>]
 		fmt.Fprintln(io.Out, p)
 		return nil
 	}
-	return usagef("unknown config subcommand %q (init, show, path)", args[0])
+	return usagef("unknown config subcommand %q (init, show, read-only, path)", args[0])
 }
 
 func configInit(ctx context.Context, args []string, io IO) error {
@@ -179,6 +184,65 @@ func configInit(ctx context.Context, args []string, io IO) error {
 		fmt.Fprintln(io.Err, "unifi: saved. Check it any time with `unifi doctor`.")
 	}
 	return nil
+}
+
+// configReadOnly shows or sets read_only on a profile, or with --all on the
+// whole file.
+func configReadOnly(args []string, io IO) error {
+	fs := flag.NewFlagSet("config read-only", flag.ContinueOnError)
+	fs.SetOutput(io.Err)
+	profile := fs.String("profile", "", "profile to change (default: the active profile)")
+	all := fs.Bool("all", false, "set it for every profile in the config file")
+	pos, err := parseInterleaved(fs, args)
+	if err != nil {
+		return flagErr(err, "config read-only")
+	}
+	if len(pos) > 1 || (len(pos) == 1 && pos[0] != "on" && pos[0] != "off") {
+		return usagef("usage: unifi config read-only [on|off] [--profile <name> | --all]")
+	}
+	if *all && *profile != "" {
+		return usagef("--all and --profile are mutually exclusive")
+	}
+	path, err := unifi.ConfigPath()
+	if err != nil {
+		return err
+	}
+	f, err := unifi.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	name := unifi.ProfileName(*profile, f)
+	if len(pos) == 1 {
+		on := pos[0] == "on"
+		if *all {
+			f.ReadOnly = on
+		} else {
+			p, ok := f.Profiles[name]
+			if !ok {
+				return usagef("profile %q not found in %s; run `unifi config init` first", name, path)
+			}
+			p.ReadOnly = on
+			f.Profiles[name] = p
+		}
+		if err := unifi.WriteFile(path, f); err != nil {
+			return err
+		}
+	}
+	res := map[string]any{"path": path, "all_profiles": f.ReadOnly}
+	if !*all {
+		cfg, err := unifi.Load(*profile)
+		if err != nil {
+			return err
+		}
+		res["profile"] = name
+		res["profile_setting"] = f.Profiles[name].ReadOnly
+		res["read_only"] = cfg.Profile.ReadOnly // after --all and UNIFI_READ_ONLY
+	}
+	b, err := json.Marshal(res)
+	if err != nil {
+		return err
+	}
+	return emit(io, b, true, nil)
 }
 
 func configShow(args []string, io IO) error {

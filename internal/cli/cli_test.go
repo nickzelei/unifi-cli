@@ -322,14 +322,20 @@ func TestReadOnly(t *testing.T) {
 		}
 	}
 
-	// The env var can't switch off a read-only profile.
+	// The env var can't switch off a read-only profile, or a read-only file.
 	path := filepath.Join(t.TempDir(), "config.json")
 	t.Setenv("UNIFI_CONFIG", path)
 	t.Setenv("UNIFI_READ_ONLY", "0")
-	if err := unifi.WriteFile(path, &unifi.File{Profiles: map[string]unifi.Profile{"default": {ReadOnly: true}}}); err != nil {
-		t.Fatal(err)
+	for _, f := range []*unifi.File{
+		{Profiles: map[string]unifi.Profile{"default": {ReadOnly: true}}},
+		{ReadOnly: true, Profiles: map[string]unifi.Profile{"default": {}, "admin": {}}},
+	} {
+		if err := unifi.WriteFile(path, f); err != nil {
+			t.Fatal(err)
+		}
+		refused(append(restart, "--yes")...)
 	}
-	refused(append(restart, "--yes")...)
+	refused(append(restart, "--yes", "--profile", "admin")...)
 }
 
 func TestHelpRendersForEveryOp(t *testing.T) {

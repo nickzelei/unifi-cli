@@ -37,8 +37,10 @@ type Profile struct {
 
 // File is the on-disk config file.
 type File struct {
-	DefaultProfile string             `json:"default_profile,omitempty"`
-	Profiles       map[string]Profile `json:"profiles,omitempty"`
+	DefaultProfile string `json:"default_profile,omitempty"`
+	// ReadOnly makes every profile read-only, whatever its own setting.
+	ReadOnly bool               `json:"read_only,omitempty"`
+	Profiles map[string]Profile `json:"profiles,omitempty"`
 }
 
 // Config is a resolved profile ready for use.
@@ -123,6 +125,9 @@ func Load(profile string) (*Config, error) {
 	p, ok := f.Profiles[name]
 	if !ok && profile != "" {
 		return nil, fmt.Errorf("profile %q not found in %s (have: %s)", name, path, strings.Join(profileNames(f), ", "))
+	}
+	if f.ReadOnly {
+		p.ReadOnly = true
 	}
 	applyEnv(&p)
 	return &Config{Name: name, Path: path, Profile: p}, nil

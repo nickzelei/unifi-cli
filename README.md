@@ -62,7 +62,15 @@ Run `unifi config init` with no flags at a terminal to be prompted for each sett
 
 ### Read-only
 
-`unifi config init --read-only` (kept on re-init; `--read-only=false` clears it), or `UNIFI_READ_ONLY=1` for one shell or agent, makes the CLI send only GET requests. Anything else is refused before it's sent, even with `--yes`; `--dry-run` still works. The env var can only turn read-only on, and unlike the profile setting it covers every profile, so set it in an agent's environment when other profiles exist. It's a guardrail in the CLI, not a permission: for a hard limit, use an API key that can only read, if your console supports that.
+A read-only CLI sends only GET requests. Anything else is refused before it's sent, even with `--yes`; `--dry-run` still works. Any of these turns it on:
+
+```bash
+unifi config read-only on            # the active profile (or --profile <name>); also config init --read-only
+unifi config read-only on --all      # every profile in the config file
+UNIFI_READ_ONLY=1 unifi ...          # this environment, whatever the config says
+```
+
+`unifi config read-only` with no argument shows the current state, and `off` (with or without `--all`) clears that setting. `--all` matters when the file has other profiles: a per-profile setting can be bypassed with `--profile`. The env var also covers a different `UNIFI_CONFIG` file, and it can only turn read-only on (`0`, `false`, `no`, `off` leave it unset; any other value turns it on). It's a guardrail in the CLI, not a permission: for a hard limit, use an API key that can only read, if your console supports that.
 
 ## Use
 
