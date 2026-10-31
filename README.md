@@ -65,7 +65,7 @@ mise run skill:install   # symlinks skills/unifi into ~/.claude/skills
 | Task | What it does |
 |-|-|
 | `mise run build` | build `bin/unifi` |
-| `mise run test` / `lint` | tests; gofmt + vet |
+| `mise run test` / `lint` | tests; golangci-lint (vet, staticcheck, gofmt, goimports, and more) + deadcode (`lint:fix` applies fixes) |
 | `mise run check` | lint, test, and verify `ops_gen.go` matches the spec |
 | `mise run spec:update` | fetch the spec from your console, regenerate |
 | `mise run spec:fetch -- --url <url>` | fetch from a URL instead, e.g. `https://developer.ui.com/network/v10.6.106/openapi.json` |

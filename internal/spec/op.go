@@ -71,13 +71,3 @@ func Find(words []string) (*Op, int) {
 	}
 	return best, len(best.Command)
 }
-
-// ByID returns the op with the given operationId.
-func ByID(id string) *Op {
-	for i := range Ops {
-		if Ops[i].ID == id {
-			return &Ops[i]
-		}
-	}
-	return nil
-}

@@ -113,7 +113,7 @@ func fetch(root string, args []string) error {
 }
 
 func httpGet(ctx context.Context, u string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func httpGet(ctx context.Context, u string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s: HTTP %d", u, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)

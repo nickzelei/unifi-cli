@@ -1,0 +1,28 @@
+version: "2"
+
+linters:
+  # standard: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - misspell
+    - nolintlint
+    - unconvert
+    - unparam
+    - usestdlibvars
+  exclusions:
+    # Unchecked errors from fmt.Fprint*, Close, and friends.
+    presets:
+      - std-error-handling
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

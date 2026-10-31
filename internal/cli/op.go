@@ -107,7 +107,7 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 		v := pos[i]
 		if a.Format == "uuid" && !unifi.IsUUID(v) && lookupOp(op, a) != nil {
 			// Not a UUID: look it up by name/MAC/IP in the parent list.
-			listPath := path[:strings.Index(path, "/{"+a.Name+"}")]
+			listPath, _, _ := strings.Cut(path, "/{"+a.Name+"}")
 			if v, err = resolveID(ctx, c, a, listPath, v); err != nil {
 				return err
 			}

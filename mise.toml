@@ -1,5 +1,7 @@
 [tools]
 go = "1.27.3"
+golangci-lint = "2.15.0"
+"go:golang.org/x/tools/cmd/deadcode" = "0.52.0"
 
 [env]
 CGO_ENABLED = "0"
@@ -40,11 +42,16 @@ description = "Run tests"
 run = "go test ./..."
 
 [tasks.lint]
-description = "Check formatting and vet"
+description = "Run golangci-lint and check for dead code"
 run = [
-  "test -z \"$(gofmt -l .)\" || (gofmt -l . && echo 'gofmt needed' && exit 1)",
-  "go vet ./...",
+  "golangci-lint run",
+  # deadcode exits 0 even when it reports unreachable functions.
+  "out=$(deadcode -test ./...) || exit 1; test -z \"$out\" || { echo \"$out\"; echo 'dead code found'; exit 1; }",
 ]
+
+[tasks."lint:fix"]
+description = "Apply golangci-lint fixes and formatting"
+run = "golangci-lint run --fix"
 
 [tasks.gen]
 description = "Regenerate internal/spec/ops_gen.go from the embedded spec"

@@ -13,9 +13,6 @@ import (
 //go:embed openapi.json
 var raw []byte
 
-// Raw returns the embedded OpenAPI document.
-func Raw() []byte { return raw }
-
 var (
 	docOnce sync.Once
 	doc     map[string]any
