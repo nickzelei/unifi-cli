@@ -1,0 +1,9 @@
+{
+  "name": "unifi",
+  "description": "Teaches Claude to query and manage a UniFi network with the unifi CLI.",
+  "author": { "name": "Nick Zelei" },
+  "homepage": "https://github.com/nickzelei/unifi-cli",
+  "repository": "https://github.com/nickzelei/unifi-cli",
+  "license": "MIT",
+  "keywords": ["unifi", "network", "cli"]
+}

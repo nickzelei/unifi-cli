@@ -78,6 +78,16 @@ ID arguments take a UUID as-is. Anything else is looked up in the matching list 
 
 ## Agent skill
 
+In Claude Code, install it as a plugin from this repo's marketplace:
+
+```text
+/plugin install unifi --marketplace nickzelei/unifi-cli
+```
+
+On Claude Code before 2.1.275, run `/plugin marketplace add nickzelei/unifi-cli` first, then `/plugin install unifi@unifi-cli`. The plugin tracks `main`, so `/plugin update unifi` picks up skill changes. If your `unifi` binary is older than `main`, `unifi skill install` gives you the skill matching your binary instead.
+
+For other agents, or to pin the skill to your binary's version:
+
 ```bash
 unifi skill install                 # writes the bundled skill to ~/.claude/skills/unifi
 unifi skill install --dir <dir>     # another agent's skills directory
@@ -112,6 +122,7 @@ internal/spec/      embedded openapi.json, generated ops_gen.go, schema renderin
 internal/unifi/     config, HTTP client, TLS pinning, site resolution
 internal/cmd/gen/   spec fetcher + op table generator
 skills/unifi/       agent skill (embedded for `unifi skill install`)
+.claude-plugin/     Claude Code plugin + marketplace manifests (serve skills/)
 ```
 
 ## License

@@ -1,0 +1,15 @@
+{
+  "name": "unifi-cli",
+  "owner": {
+    "name": "Nick Zelei"
+  },
+  "description": "Claude Code plugin for the unifi CLI.",
+  "plugins": [
+    {
+      "name": "unifi",
+      "source": "./",
+      "description": "Teaches Claude to query and manage a UniFi network with the unifi CLI.",
+      "category": "productivity"
+    }
+  ]
+}
