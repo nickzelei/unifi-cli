@@ -27,6 +27,10 @@ done
 ls -l dist
 """
 
+[tasks.release]
+description = "Tag and publish a release: mise run release -- [-n] VERSION|major|minor|patch"
+run = "scripts/release.sh"
+
 [tasks.install]
 description = "Install unifi into $GOBIN"
 run = "go install -trimpath ./cmd/unifi"

@@ -69,7 +69,8 @@ mise run skill:install   # symlinks skills/unifi into ~/.claude/skills
 | `mise run check` | lint, test, and verify `ops_gen.go` matches the spec |
 | `mise run spec:update` | fetch the spec from your console, regenerate |
 | `mise run spec:fetch -- --url <url>` | fetch from a URL instead, e.g. `https://developer.ui.com/network/v10.6.106/openapi.json` |
-| `mise run release:build` | cross-compile release archives and `checksums.txt` into `dist/` (CI runs this when a `v*` tag is pushed) |
+| `mise run release -- patch` | tag a release: checks main is clean, pushed and green, then pushes a signed `vX.Y.Z` tag; `-n` for a dry run, `minor`/`major`/`X.Y.Z[-pre]` also work |
+| `mise run release:build` | cross-compile release archives and `checksums.txt` into `dist/` (the release workflow runs this for signed `v*` tags) |
 | `mise run gen` | regenerate `ops_gen.go` from the committed spec |
 
 Command names come from the API paths: `/v1/sites/{siteId}/dns/policies/{id}` becomes `dns policies get|update|delete <dns-policy-id>`. Operations those rules can't name (actions, sub-resources) need an explicit entry in `overrides` in [internal/cmd/gen/main.go](internal/cmd/gen/main.go). Generation fails loudly on a missing override or a name collision, so new endpoints always get a deliberate name.

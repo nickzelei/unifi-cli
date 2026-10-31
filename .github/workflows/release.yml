@@ -15,6 +15,24 @@ jobs:
       id-token: write     # sign the provenance attestation
       attestations: write
     steps:
+      # Only release tags made by scripts/release.sh: annotated, signed, and
+      # verified by GitHub against the tagger's signing key.
+      - name: Require a verified signed tag
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq 'select(.object.type == "tag") | .object.sha')
+          if [ -z "$sha" ]; then
+            echo "::error::$TAG is a lightweight tag; cut releases with scripts/release.sh"
+            exit 1
+          fi
+          result=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '"\(.verification.verified) \(.verification.reason)"')
+          echo "tag verification: $result"
+          case "$result" in
+            "true "*) ;;
+            *) echo "::error::$TAG is not signed by a key GitHub verifies ($result); cut releases with scripts/release.sh"; exit 1 ;;
+          esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -26,7 +44,10 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*.tar.gz
-      - run: gh release create "$TAG" dist/* --verify-tag --generate-notes --title "$TAG"
+      - run: |
+          flags=""
+          case "$TAG" in *-*) flags="--prerelease" ;; esac
+          gh release create "$TAG" dist/* --verify-tag --generate-notes --title "$TAG" $flags
         env:
           TAG: ${{ github.ref_name }}
           GH_TOKEN: ${{ github.token }}
