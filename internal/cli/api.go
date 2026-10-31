@@ -28,7 +28,7 @@ Usage:
 
 The path is relative to the integration base (…/proxy/network/integration),
 e.g. /v1/sites/{siteId}/wans. {siteId} is replaced with the resolved --site.
-Methods other than GET require --yes.
+Methods other than GET require --yes, and are refused on a read-only profile.
 
 Flags:
   --query k=v      query parameter (repeatable)
@@ -68,13 +68,15 @@ Flags:
 	if err != nil {
 		return err
 	}
-	if method != "GET" && !g.yes && !g.dryRun {
-		return usagef("%s requests change state; re-run with --yes to confirm", method)
-	}
-
 	cfg, err := unifi.Load(g.profile)
 	if err != nil {
 		return err
+	}
+	if err := checkReadOnly(cfg, method, g.dryRun); err != nil {
+		return err
+	}
+	if method != "GET" && !g.yes && !g.dryRun {
+		return usagef("%s requests change state; re-run with --yes to confirm", method)
 	}
 	c, err := unifi.NewClient(cfg.Profile, g.timeout)
 	if err != nil {

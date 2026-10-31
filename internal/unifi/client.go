@@ -57,6 +57,9 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("HTTP %d %s (%s %s)", e.Status, msg, e.Method, e.URL)
 }
 
+// ErrReadOnly is returned for a request a read-only profile doesn't allow.
+var ErrReadOnly = errors.New("read-only profile")
+
 // NewClient builds a client for the profile.
 func NewClient(p Profile, timeout time.Duration) (*Client, error) {
 	base, err := p.Base()
@@ -91,6 +94,9 @@ func (c *Client) Do(ctx context.Context, method, path string, q url.Values, body
 
 // DoURL sends a request to an absolute URL on the console.
 func (c *Client) DoURL(ctx context.Context, method, u string, body []byte) ([]byte, error) {
+	if !c.profile.Allows(method) {
+		return nil, fmt.Errorf("%w: refusing %s %s", ErrReadOnly, method, u)
+	}
 	if c.key == "" {
 		k, err := c.profile.ResolveAPIKey(ctx)
 		if err != nil {

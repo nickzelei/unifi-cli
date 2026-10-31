@@ -92,7 +92,7 @@ func setup(t *testing.T) *mock {
 	t.Setenv("UNIFI_API_KEY", "test-key")
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("UNIFI_NO_VERSION_CHECK", "1")
-	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE"} {
+	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE", "UNIFI_READ_ONLY"} {
 		t.Setenv(k, "")
 	}
 	return m
@@ -293,6 +293,51 @@ func TestRawAPI(t *testing.T) {
 	}
 }
 
+func TestReadOnly(t *testing.T) {
+	m := setup(t)
+	t.Setenv("UNIFI_READ_ONLY", "1")
+	restart := []string{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`}
+	refused := func(args ...string) {
+		t.Helper()
+		sent := len(m.seen())
+		code, _, errOut := run(t, "", args...)
+		if code != exitUsage || !strings.Contains(errOut, "is read-only") {
+			t.Errorf("%v: exit %d, stderr %q", args, code, errOut)
+		}
+		if got := m.seen(); len(got) != sent {
+			t.Errorf("%v: sent requests %v", args, got[sent:])
+		}
+	}
+	refused(restart...)
+	refused(append(restart, "--yes")...)
+	refused("api", "DELETE", "/v1/sites/{siteId}/networks/x", "--yes")
+	refused("api", "post", "/v1/sites/{siteId}/networks")
+	for _, args := range [][]string{
+		{"devices", "list", "--site", siteID},
+		{"api", "GET", "/v1/sites/{siteId}/wans"},
+		append(restart, "--dry-run"),
+	} {
+		if code, _, errOut := run(t, "", args...); code != 0 {
+			t.Errorf("%v: exit %d: %s", args, code, errOut)
+		}
+	}
+
+	// The env var can't switch off a read-only profile, or a read-only file.
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("UNIFI_CONFIG", path)
+	t.Setenv("UNIFI_READ_ONLY", "0")
+	for _, f := range []*unifi.File{
+		{Profiles: map[string]unifi.Profile{"default": {ReadOnly: true}}},
+		{ReadOnly: true, Profiles: map[string]unifi.Profile{"default": {}, "admin": {}}},
+	} {
+		if err := unifi.WriteFile(path, f); err != nil {
+			t.Fatal(err)
+		}
+		refused(append(restart, "--yes")...)
+	}
+	refused(append(restart, "--yes", "--profile", "admin")...)
+}
+
 func TestHelpRendersForEveryOp(t *testing.T) {
 	for i := range spec.Ops {
 		op := &spec.Ops[i]
@@ -393,6 +438,14 @@ func TestDoctor(t *testing.T) {
 	if !strings.Contains(checks["site"].Detail, siteID) {
 		t.Errorf("site detail %q", checks["site"].Detail)
 	}
+	if !strings.HasSuffix(checks["config"].Detail, "; read-write") {
+		t.Errorf("config detail %q", checks["config"].Detail)
+	}
+	t.Setenv("UNIFI_READ_ONLY", "1")
+	if _, checks = doctor(t); !strings.HasSuffix(checks["config"].Detail, "; read-only") {
+		t.Errorf("read-only config detail %q", checks["config"].Detail)
+	}
+	t.Setenv("UNIFI_READ_ONLY", "")
 
 	t.Setenv("UNIFI_API_KEY", "")
 	code, checks = doctor(t)

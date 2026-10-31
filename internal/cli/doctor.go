@@ -78,7 +78,11 @@ fails (warnings don't fail).
 		skipRest("tls", "api_key", "api", "site", "spec")
 		return failed()
 	}
-	add("config", "ok", "profile %q from %s; API at %s", cfg.Name, cfg.Path, base)
+	mode := "read-write"
+	if p.ReadOnly {
+		mode = "read-only"
+	}
+	add("config", "ok", "profile %q from %s; API at %s; %s", cfg.Name, cfg.Path, base, mode)
 
 	// tls
 	tlsOK := checkTLS(ctx, p, base, *timeout, add)

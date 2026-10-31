@@ -36,7 +36,7 @@ func Version() string {
 const (
 	exitOK    = 0
 	exitErr   = 1 // runtime or API error
-	exitUsage = 2 // bad invocation, or a destructive op without --yes
+	exitUsage = 2 // bad invocation, a destructive op without --yes, or a write on a read-only profile
 )
 
 type usageError struct{ msg string }
@@ -76,7 +76,7 @@ func Run(ctx context.Context, args []string, io IO) int {
 	}
 	fmt.Fprintln(io.Err, "unifi:", err)
 	var ue usageError
-	if errors.As(err, &ue) {
+	if errors.As(err, &ue) || errors.Is(err, unifi.ErrReadOnly) {
 		return exitUsage
 	}
 	return exitErr

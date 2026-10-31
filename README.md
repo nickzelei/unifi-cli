@@ -58,7 +58,19 @@ Run `unifi config init` with no flags at a terminal to be prompted for each sett
 
 `unifi doctor` re-checks all of this later (config, TLS pin and expiry, key, API, site) and compares the console's Network version with the CLI's embedded spec. Commands also warn on stderr, at most once a day, when the console is newer than the spec; the console's version is cached under the OS cache dir (`UNIFI_NO_VERSION_CHECK=1` turns this off).
 
-`--api-key` stores the key inline instead. Every setting can be overridden with an env var: `UNIFI_PROFILE`, `UNIFI_HOST`, `UNIFI_BASE_URL`, `UNIFI_API_KEY`, `UNIFI_SITE`, `UNIFI_TLS_FINGERPRINT`, `UNIFI_INSECURE`. Multiple consoles go in separate `--profile`s.
+`--api-key` stores the key inline instead. Every setting can be overridden with an env var: `UNIFI_PROFILE`, `UNIFI_HOST`, `UNIFI_BASE_URL`, `UNIFI_API_KEY`, `UNIFI_SITE`, `UNIFI_TLS_FINGERPRINT`, `UNIFI_INSECURE`, `UNIFI_READ_ONLY`. Multiple consoles go in separate `--profile`s.
+
+### Read-only
+
+A read-only CLI sends only GET requests. Anything else is refused before it's sent, even with `--yes`; `--dry-run` still works. Any of these turns it on:
+
+```bash
+unifi config read-only on            # the active profile (or --profile <name>); also config init --read-only
+unifi config read-only on --all      # every profile in the config file
+UNIFI_READ_ONLY=1 unifi ...          # this environment, whatever the config says
+```
+
+`unifi config read-only` with no argument shows the current state, and `off` (with or without `--all`) clears that setting. `--all` matters when the file has other profiles: a per-profile setting can be bypassed with `--profile`. The env var also covers a different `UNIFI_CONFIG` file, and it can only turn read-only on (`0`, `false`, `no`, `off` leave it unset; any other value turns it on). It's a guardrail in the CLI, not a permission: for a hard limit, use an API key that can only read, if your console supports that.
 
 ## Use
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -71,5 +72,80 @@ func TestConfigInitNoTTYNeedsHost(t *testing.T) {
 	code, _, errb := run(t, "", "config", "init")
 	if code != exitUsage || !strings.Contains(errb, "--host is required") {
 		t.Errorf("exit %d: %s", code, errb)
+	}
+}
+
+func TestConfigInitReadOnlySticks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("UNIFI_CONFIG", path)
+	initWith := func(args ...string) unifi.Profile {
+		t.Helper()
+		args = append([]string{"config", "init", "--host", "192.168.1.1", "--api-key-cmd", "true", "--skip-check"}, args...)
+		if code, _, errb := run(t, "", args...); code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, errb)
+		}
+		f, err := unifi.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f.Profiles["default"]
+	}
+	if p := initWith("--read-only"); !p.ReadOnly {
+		t.Fatal("--read-only not saved")
+	}
+	if p := initWith(); !p.ReadOnly {
+		t.Fatal("re-init without --read-only turned it off")
+	}
+	if p := initWith("--read-only=false"); p.ReadOnly {
+		t.Fatal("--read-only=false did not turn it off")
+	}
+}
+
+func TestConfigReadOnlyCmd(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("UNIFI_CONFIG", path)
+	t.Setenv("UNIFI_READ_ONLY", "")
+	t.Setenv("UNIFI_PROFILE", "")
+	if err := unifi.WriteFile(path, &unifi.File{DefaultProfile: "home", Profiles: map[string]unifi.Profile{
+		"home": {Host: "192.168.1.1"}, "admin": {Host: "192.168.1.1"},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	status := func(args ...string) map[string]any {
+		t.Helper()
+		code, out, errb := run(t, "", append([]string{"config", "read-only"}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, errb)
+		}
+		var res map[string]any
+		if err := json.Unmarshal([]byte(out), &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	if r := status(); r["profile"] != "home" || r["read_only"] != false {
+		t.Fatalf("initial status %v", r)
+	}
+	if r := status("on"); r["read_only"] != true || r["profile_setting"] != true {
+		t.Fatalf("on: %v", r)
+	}
+	if r := status("--profile", "admin"); r["read_only"] != false {
+		t.Fatalf("admin should be unaffected: %v", r)
+	}
+	// --all covers every profile, even one whose own setting is off.
+	if r := status("on", "--all"); r["all_profiles"] != true {
+		t.Fatalf("on --all: %v", r)
+	}
+	if r := status("--profile", "admin"); r["read_only"] != true || r["profile_setting"] != false {
+		t.Fatalf("admin under --all: %v", r)
+	}
+	status("off", "--all")
+	if r := status("off"); r["read_only"] != false {
+		t.Fatalf("off: %v", r)
+	}
+	for _, args := range [][]string{{"maybe"}, {"on", "--all", "--profile", "home"}, {"on", "--profile", "nope"}} {
+		if code, _, _ := run(t, "", append([]string{"config", "read-only"}, args...)...); code != exitUsage {
+			t.Errorf("%v: exit %d, want %d", args, code, exitUsage)
+		}
 	}
 }

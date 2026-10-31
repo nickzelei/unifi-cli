@@ -2,6 +2,7 @@ package unifi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -82,11 +83,38 @@ func TestAPIKeyCmd(t *testing.T) {
 	}
 }
 
+func TestReadOnlyClient(t *testing.T) {
+	srv, _ := tlsServer(t)
+	c, _ := NewClient(Profile{BaseURL: srv.URL, APIKey: "k", Insecure: true, ReadOnly: true}, 5*time.Second)
+	if _, err := c.Do(context.Background(), "GET", "/v1/info", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range []string{"POST", "PUT", "PATCH", "DELETE", "get"} {
+		if _, err := c.Do(context.Background(), m, "/v1/info", nil, nil); !errors.Is(err, ErrReadOnly) {
+			t.Errorf("%s: want ErrReadOnly, got %v", m, err)
+		}
+	}
+}
+
+func TestReadOnlyEnvFailsClosed(t *testing.T) {
+	t.Setenv("UNIFI_CONFIG", filepath.Join(t.TempDir(), "config.json"))
+	for v, want := range map[string]bool{"": false, "0": false, "false": false, "No": false, "off": false, "1": true, "on": true, "y": true, "enabled": true} {
+		t.Setenv("UNIFI_READ_ONLY", v)
+		cfg, err := Load("")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Profile.ReadOnly != want {
+			t.Errorf("UNIFI_READ_ONLY=%q: read-only %v, want %v", v, cfg.Profile.ReadOnly, want)
+		}
+	}
+}
+
 func TestLoadProfilesAndEnv(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	t.Setenv("UNIFI_CONFIG", path)
-	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_BASE_URL", "UNIFI_API_KEY", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE"} {
+	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_BASE_URL", "UNIFI_API_KEY", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE", "UNIFI_READ_ONLY"} {
 		t.Setenv(k, "")
 	}
 	err := WriteFile(path, &File{DefaultProfile: "home", Profiles: map[string]Profile{

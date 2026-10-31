@@ -74,5 +74,6 @@ Start with `unifi doctor`: it checks config, TLS, the API key, the API, the site
 - `no host configured` / `no API key configured`: the user must run `unifi config init --host <ip> --api-key-cmd '<cmd>'`, or `unifi config init` with no flags in their own terminal to be prompted (the API key comes from UniFi Network → Settings → Control Plane → Integrations). Don't invent keys, and don't ask for the key in chat.
 - `certificate fingerprint mismatch`: the console certificate changed. Ask the user before re-running `unifi config init` to re-pin it.
 - `HTTP 401`: bad or revoked API key. `HTTP 404`: wrong ID or site. `HTTP 400`: the body didn't match the schema; re-read `--help`.
+- `profile "…" is read-only`: the user set `read_only` (or `UNIFI_READ_ONLY`) so this CLI can only read. Don't try to get around it (editing the config, `config read-only off`, `--read-only=false`, another profile or config file). Tell the user what change you wanted to make and let them decide.
 - `unifi config show` prints the active profile, with the key redacted.
 - This skill ships inside the binary: `unifi skill install` rewrites it for the installed version.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,12 +31,16 @@ type Profile struct {
 	TLSFingerprint string `json:"tls_fingerprint,omitempty"`
 	// Insecure disables TLS verification entirely.
 	Insecure bool `json:"insecure,omitempty"`
+	// ReadOnly makes the client refuse every request except GET.
+	ReadOnly bool `json:"read_only,omitempty"`
 }
 
 // File is the on-disk config file.
 type File struct {
-	DefaultProfile string             `json:"default_profile,omitempty"`
-	Profiles       map[string]Profile `json:"profiles,omitempty"`
+	DefaultProfile string `json:"default_profile,omitempty"`
+	// ReadOnly makes every profile read-only, whatever its own setting.
+	ReadOnly bool               `json:"read_only,omitempty"`
+	Profiles map[string]Profile `json:"profiles,omitempty"`
 }
 
 // Config is a resolved profile ready for use.
@@ -121,6 +126,9 @@ func Load(profile string) (*Config, error) {
 	if !ok && profile != "" {
 		return nil, fmt.Errorf("profile %q not found in %s (have: %s)", name, path, strings.Join(profileNames(f), ", "))
 	}
+	if f.ReadOnly {
+		p.ReadOnly = true
+	}
 	applyEnv(&p)
 	return &Config{Name: name, Path: path, Profile: p}, nil
 }
@@ -147,10 +155,36 @@ func applyEnv(p *Profile) {
 	if v := os.Getenv("UNIFI_API_KEY"); v != "" {
 		p.APIKey, p.APIKeyCmd = v, ""
 	}
-	switch strings.ToLower(os.Getenv("UNIFI_INSECURE")) {
-	case "1", "true", "yes":
+	if truthy(os.Getenv("UNIFI_INSECURE")) {
 		p.Insecure = true
 	}
+	// UNIFI_READ_ONLY can only turn read-only on, never off a profile that has
+	// it. It fails closed: any value but an explicit 0/false/no/off enables it.
+	if v := os.Getenv("UNIFI_READ_ONLY"); v != "" && !falsy(v) {
+		p.ReadOnly = true
+	}
+}
+
+func falsy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "0", "false", "no", "off":
+		return true
+	}
+	return false
+}
+
+func truthy(v string) bool {
+	switch strings.ToLower(v) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
+}
+
+// Allows reports whether the profile may send a request with this method:
+// a read-only profile allows only GET.
+func (p Profile) Allows(method string) bool {
+	return !p.ReadOnly || method == http.MethodGet
 }
 
 // Base returns the integration API base URL, without a trailing slash.
