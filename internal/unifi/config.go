@@ -30,6 +30,8 @@ type Profile struct {
 	TLSFingerprint string `json:"tls_fingerprint,omitempty"`
 	// Insecure disables TLS verification entirely.
 	Insecure bool `json:"insecure,omitempty"`
+	// ReadOnly makes the client refuse every request except GET.
+	ReadOnly bool `json:"read_only,omitempty"`
 }
 
 // File is the on-disk config file.
@@ -147,10 +149,21 @@ func applyEnv(p *Profile) {
 	if v := os.Getenv("UNIFI_API_KEY"); v != "" {
 		p.APIKey, p.APIKeyCmd = v, ""
 	}
-	switch strings.ToLower(os.Getenv("UNIFI_INSECURE")) {
-	case "1", "true", "yes":
+	if truthy(os.Getenv("UNIFI_INSECURE")) {
 		p.Insecure = true
 	}
+	// UNIFI_READ_ONLY can only turn read-only on, never off a profile that has it.
+	if truthy(os.Getenv("UNIFI_READ_ONLY")) {
+		p.ReadOnly = true
+	}
+}
+
+func truthy(v string) bool {
+	switch strings.ToLower(v) {
+	case "1", "true", "yes":
+		return true
+	}
+	return false
 }
 
 // Base returns the integration API base URL, without a trailing slash.

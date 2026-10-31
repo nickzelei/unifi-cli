@@ -73,3 +73,29 @@ func TestConfigInitNoTTYNeedsHost(t *testing.T) {
 		t.Errorf("exit %d: %s", code, errb)
 	}
 }
+
+func TestConfigInitReadOnlySticks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("UNIFI_CONFIG", path)
+	initWith := func(args ...string) unifi.Profile {
+		t.Helper()
+		args = append([]string{"config", "init", "--host", "192.168.1.1", "--api-key-cmd", "true", "--skip-check"}, args...)
+		if code, _, errb := run(t, "", args...); code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, errb)
+		}
+		f, err := unifi.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f.Profiles["default"]
+	}
+	if p := initWith("--read-only"); !p.ReadOnly {
+		t.Fatal("--read-only not saved")
+	}
+	if p := initWith(); !p.ReadOnly {
+		t.Fatal("re-init without --read-only turned it off")
+	}
+	if p := initWith("--read-only=false"); p.ReadOnly {
+		t.Fatal("--read-only=false did not turn it off")
+	}
+}

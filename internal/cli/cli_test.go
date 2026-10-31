@@ -92,7 +92,7 @@ func setup(t *testing.T) *mock {
 	t.Setenv("UNIFI_API_KEY", "test-key")
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("UNIFI_NO_VERSION_CHECK", "1")
-	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE"} {
+	for _, k := range []string{"UNIFI_PROFILE", "UNIFI_HOST", "UNIFI_SITE", "UNIFI_TLS_FINGERPRINT", "UNIFI_INSECURE", "UNIFI_READ_ONLY"} {
 		t.Setenv(k, "")
 	}
 	return m
@@ -290,6 +290,47 @@ func TestRawAPI(t *testing.T) {
 	}
 	if code, _, _ := run(t, "", "api", "DELETE", "/v1/sites/{siteId}/networks/x"); code != exitUsage {
 		t.Fatalf("raw DELETE without --yes: exit %d", code)
+	}
+}
+
+func TestReadOnly(t *testing.T) {
+	m := setup(t)
+	t.Setenv("UNIFI_READ_ONLY", "1")
+	if code, out, errOut := run(t, "", "devices", "list", "--site", siteID); code != 0 || !strings.Contains(out, "Device 0") {
+		t.Fatalf("GET: exit %d, out %q, err %q", code, out, errOut)
+	}
+	sent := len(m.seen())
+	refused := [][]string{
+		{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`},
+		{"devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--yes"},
+		{"api", "DELETE", "/v1/sites/{siteId}/networks/x", "--yes"},
+		{"api", "post", "/v1/sites/{siteId}/networks"},
+	}
+	for _, args := range refused {
+		code, _, errOut := run(t, "", args...)
+		if code != exitUsage || !strings.Contains(errOut, "is read-only") {
+			t.Errorf("%v: exit %d, stderr %q", args, code, errOut)
+		}
+	}
+	if got := m.seen(); len(got) != sent {
+		t.Fatalf("read-only sent requests: %v", got[sent:])
+	}
+	if code, _, errOut := run(t, "", "devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--dry-run"); code != 0 {
+		t.Fatalf("dry run: exit %d: %s", code, errOut)
+	}
+	if code, _, errOut := run(t, "", "api", "GET", "/v1/sites/{siteId}/wans"); code != 0 {
+		t.Fatalf("raw GET: exit %d: %s", code, errOut)
+	}
+
+	// The env var can't switch off a read-only profile.
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("UNIFI_CONFIG", path)
+	t.Setenv("UNIFI_READ_ONLY", "0")
+	if err := unifi.WriteFile(path, &unifi.File{Profiles: map[string]unifi.Profile{"default": {ReadOnly: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errOut := run(t, "", "devices", "action", deviceID, "--site", siteID, "--data", `{"action":"RESTART"}`, "--yes"); code != exitUsage || !strings.Contains(errOut, "is read-only") {
+		t.Fatalf("profile read_only: exit %d, stderr %q", code, errOut)
 	}
 }
 

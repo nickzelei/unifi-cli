@@ -58,7 +58,11 @@ Run `unifi config init` with no flags at a terminal to be prompted for each sett
 
 `unifi doctor` re-checks all of this later (config, TLS pin and expiry, key, API, site) and compares the console's Network version with the CLI's embedded spec. Commands also warn on stderr, at most once a day, when the console is newer than the spec; the console's version is cached under the OS cache dir (`UNIFI_NO_VERSION_CHECK=1` turns this off).
 
-`--api-key` stores the key inline instead. Every setting can be overridden with an env var: `UNIFI_PROFILE`, `UNIFI_HOST`, `UNIFI_BASE_URL`, `UNIFI_API_KEY`, `UNIFI_SITE`, `UNIFI_TLS_FINGERPRINT`, `UNIFI_INSECURE`. Multiple consoles go in separate `--profile`s.
+`--api-key` stores the key inline instead. Every setting can be overridden with an env var: `UNIFI_PROFILE`, `UNIFI_HOST`, `UNIFI_BASE_URL`, `UNIFI_API_KEY`, `UNIFI_SITE`, `UNIFI_TLS_FINGERPRINT`, `UNIFI_INSECURE`, `UNIFI_READ_ONLY`. Multiple consoles go in separate `--profile`s.
+
+### Read-only
+
+`unifi config init --read-only` saves `"read_only": true` in the profile, and `UNIFI_READ_ONLY=1` does the same for one shell or agent. A read-only profile sends only GET requests. Every other method is refused before anything goes out, whether it comes from a generated command or from `unifi api`, even with `--yes`. `--dry-run` still works. The HTTP client checks every request too, so a code path that skips the command-level check can't write either. The env var can only turn read-only on. To turn a profile's setting off, re-run `config init --read-only=false` (a re-init without the flag keeps it). This is a guardrail in the CLI, not a permission: for a hard limit, give the profile a UniFi API key that can only read, if your console supports that.
 
 ## Use
 

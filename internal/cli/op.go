@@ -78,13 +78,15 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 			return err
 		}
 	}
-	if op.Destructive && !g.yes && !g.dryRun {
-		return usagef("%q is destructive (%s %s); re-run with --yes to confirm", op.Name(), op.Method, op.Path)
-	}
-
 	cfg, err := unifi.Load(g.profile)
 	if err != nil {
 		return err
+	}
+	if err := checkReadOnly(cfg, op.Method, g.dryRun); err != nil {
+		return err
+	}
+	if op.Destructive && !g.yes && !g.dryRun {
+		return usagef("%q is destructive (%s %s); re-run with --yes to confirm", op.Name(), op.Method, op.Path)
 	}
 	c, err := unifi.NewClient(cfg.Profile, g.timeout)
 	if err != nil {
@@ -132,6 +134,16 @@ func runOp(ctx context.Context, op *spec.Op, args []string, io IO) error {
 	}
 	checkDrift(ctx, c, io)
 	return g.emit(io, out)
+}
+
+// checkReadOnly refuses a non-GET request on a read-only profile before
+// anything else happens. --dry-run still works, since it sends nothing; the
+// client enforces the same rule on every request regardless.
+func checkReadOnly(cfg *unifi.Config, method string, dryRun bool) error {
+	if !cfg.Profile.ReadOnly || method == "GET" || dryRun {
+		return nil
+	}
+	return usagef("profile %q is read-only: %s requests are not allowed (set by read_only in %s or UNIFI_READ_ONLY)", cfg.Name, method, cfg.Path)
 }
 
 // validateBody checks --data against the embedded spec. Violations are a
